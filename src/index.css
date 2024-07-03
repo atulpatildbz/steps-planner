@@ -1,3 +1,59 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Dark mode styles */
+:root {
+  --bg-color: #ffffff;
+  --text-color: #000000;
+  --input-bg-color: #ffffff;
+  --input-border-color: #d1d5db;
+  --input-placeholder-color: #9ca3af;
+  --input-text-color: #000000;
+  --button-bg-color: #1f2937;
+  --button-text-color: #ffffff;
+  --button-hover-bg-color: #374151;
+  --focus-ring-color: rgba(31, 41, 55, 0.5);
+}
+
+.dark {
+  --bg-color: #1a202c;
+  --text-color: #ffffff;
+  --input-bg-color: #2d3748;
+  --input-border-color: #4a5568;
+  --input-placeholder-color: #a0aec0;
+  --input-text-color: #ffffff;
+  --button-bg-color: #2d3748;
+  --button-text-color: #ffffff;
+  --button-hover-bg-color: #4a5568;
+  --focus-ring-color: rgba(74, 85, 104, 0.5);
+}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+}
+
+input {
+  background-color: var(--input-bg-color);
+  border-color: var(--input-border-color);
+  color: var(--input-text-color);
+}
+
+input::placeholder {
+  color: var(--input-placeholder-color);
+}
+
+button {
+  background-color: var(--button-bg-color);
+  color: var(--button-text-color);
+}
+
+button:hover {
+  background-color: var(--button-hover-bg-color);
+}
+
+button:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--focus-ring-color);
+}

@@ -10,6 +10,7 @@ const StepPlanner = () => {
   const [historicalData, setHistoricalData] = useState([]);
   const [chartData, setChartData] = useState([]);
   const [metrics, setMetrics] = useState({ stepsPerHour: 0, restWalkRatio: '0.00', minutesWalkPerHour: 0 });
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   useEffect(() => {
     const savedData = localStorage.getItem('stepData');
@@ -100,47 +101,61 @@ const StepPlanner = () => {
       minutesWalkPerHour
     });
   };
-  console.info("AtulLog: chartData: ", chartData)
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDarkMode]);
 
   return (
-    <div className="p-4 max-w-4xl mx-auto">
+    <div className='w-full h-full dark:bg-gray-900 dark:text-white'>
+    <div className="p-4 max-w-4xl mx-auto ">
       <h1 className="text-2xl font-bold mb-4">Step Planner</h1>
+      <button
+        onClick={() => setIsDarkMode(!isDarkMode)}
+        className="mb-4 px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-800 focus:ring-opacity-50"
+      >
+        Toggle Dark Mode
+      </button>
       <div className="grid grid-cols-2 gap-4 mb-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700">Target Steps</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Target Steps</label>
           <input
             type="number"
             value={targetSteps}
             onChange={(e) => setTargetSteps(Number(e.target.value))}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Target Time</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Target Time</label>
           <input
             type="time"
             value={targetTime}
             onChange={(e) => setTargetTime(e.target.value)}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Walking Pace (steps/min)</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Walking Pace (steps/min)</label>
           <input
             type="number"
             value={walkingPace}
             onChange={(e) => setWalkingPace(Number(e.target.value))}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">Current Steps</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Current Steps</label>
           <div className="flex items-center">
             <input
               type="number"
               value={currentSteps}
               onChange={(e) => setCurrentSteps(Number(e.target.value))}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
             />
             <button
               onClick={saveCurrentSteps}
@@ -170,12 +185,14 @@ const StepPlanner = () => {
                 scale="time"
                 domain={['auto', 'auto']}
                 tickFormatter={(timeStr) => timeFormat("%H:%M")(new Date(timeStr))}
+                className="dark:text-gray-300"
               />
               <YAxis 
                 domain={[0, 'dataMax']}
                 tickFormatter={(value) => Math.round(value)}
+                className="dark:text-gray-300"
               />
-              <Tooltip labelFormatter={(timeStr) => timeFormat("%H:%M")(new Date(timeStr))} />
+              <Tooltip labelFormatter={(timeStr) => timeFormat("%H:%M")(new Date(timeStr))} contentStyle={{backgroundColor: 'var(--bg-color)', color: 'var(--text-color)'}} itemStyle={{color: 'var(--text-color)'}} />
               <Legend />
               <Line type="monotone" dataKey="steps" stroke="#8884d8" dot={false} />
             </LineChart>
@@ -201,7 +218,7 @@ const StepPlanner = () => {
           </div>
         </div>
       )}
-    </div>
+ </div>   </div>
   );
 };
 
