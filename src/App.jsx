@@ -10,7 +10,7 @@ const StepPlanner = () => {
   const [historicalData, setHistoricalData] = useState([]);
   const [chartData, setChartData] = useState([]);
   const [metrics, setMetrics] = useState({ stepsPerHour: 0, restWalkRatio: '0.00', minutesWalkPerHour: 0 });
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => window.matchMedia('(prefers-color-scheme: dark)').matches);
 
   useEffect(() => {
     const savedData = localStorage.getItem('stepData');
@@ -20,6 +20,22 @@ const StepPlanner = () => {
       setCurrentSteps(parsedData[parsedData.length - 1].steps);
     }
   }, []);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleChange = (e) => setIsDarkMode(e.matches);
+
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
+  }, []);
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDarkMode]);
 
   const saveCurrentSteps = () => {
     const now = new Date();
@@ -102,17 +118,8 @@ const StepPlanner = () => {
     });
   };
 
-  useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [isDarkMode]);
-
   return (
-    <div className='w-full h-full dark:bg-gray-900 dark:text-white'>
-    <div className="p-4 max-w-4xl mx-auto ">
+    <div className="p-4 max-w-4xl mx-auto dark:bg-gray-900 dark:text-white">
       <h1 className="text-2xl font-bold mb-4">Step Planner</h1>
       <button
         onClick={() => setIsDarkMode(!isDarkMode)}
@@ -218,7 +225,7 @@ const StepPlanner = () => {
           </div>
         </div>
       )}
- </div>   </div>
+ </div>   
   );
 };
 
