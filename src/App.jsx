@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { timeFormat } from 'd3-time-format';
 
@@ -9,6 +9,7 @@ const StepPlanner = () => {
   const [currentSteps, setCurrentSteps] = useState(0);
   const [historicalData, setHistoricalData] = useState([]);
   const [chartData, setChartData] = useState([]);
+  const [metrics, setMetrics] = useState({ stepsPerHour: 0, restWalkRatio: '0.00', minutesWalkPerHour: 0 });
 
   useEffect(() => {
     const savedData = localStorage.getItem('stepData');
@@ -85,6 +86,19 @@ const StepPlanner = () => {
       time: timeFormat("%H:%M")(adjustTime(point.time)),
       steps: point.steps
     })));
+
+    // Calculate rest:walk ratio
+    const totalMinutes = timeLeft * 60;
+    const walkingMinutes = stepsLeft / walkingPace;
+    const restMinutes = totalMinutes - walkingMinutes;
+    const restWalkRatio = (restMinutes / walkingMinutes).toFixed(2);
+    const minutesWalkPerHour = (walkingMinutes / timeLeft).toFixed(2);
+
+    setMetrics({
+      stepsPerHour,
+      restWalkRatio,
+      minutesWalkPerHour
+    });
   };
 
   return (
@@ -173,6 +187,12 @@ const StepPlanner = () => {
                 </li>
               ))}
             </ul>
+          </div>
+          <div className="mt-4">
+            <h3 className="text-lg font-semibold mb-2">Additional Metrics</h3>
+            <p>Steps needed per hour: {metrics.stepsPerHour}</p>
+            <p>Rest to Walk ratio: {metrics.restWalkRatio}</p>
+            <p>Minutes walked per hour: {metrics.minutesWalkPerHour}</p>
           </div>
         </div>
       )}
