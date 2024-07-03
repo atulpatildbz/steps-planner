@@ -83,7 +83,7 @@ const StepPlanner = () => {
     };
 
     setChartData(uniqueData.map(point => ({
-      time: timeFormat("%H:%M")(adjustTime(point.time)),
+      time: new Date(adjustTime(point.time)).getTime(), // Convert to timestamp
       steps: point.steps
     })));
 
@@ -100,6 +100,7 @@ const StepPlanner = () => {
       minutesWalkPerHour
     });
   };
+  console.info("AtulLog: chartData: ", chartData)
 
   return (
     <div className="p-4 max-w-4xl mx-auto">
@@ -165,15 +166,16 @@ const StepPlanner = () => {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis 
                 dataKey="time" 
-                type="category"
-                interval="preserveStartEnd"
-                tickFormatter={(value) => value}
+                type="number"
+                scale="time"
+                domain={['auto', 'auto']}
+                tickFormatter={(timeStr) => timeFormat("%H:%M")(new Date(timeStr))}
               />
               <YAxis 
                 domain={[0, 'dataMax']}
                 tickFormatter={(value) => Math.round(value)}
               />
-              <Tooltip />
+              <Tooltip labelFormatter={(timeStr) => timeFormat("%H:%M")(new Date(timeStr))} />
               <Legend />
               <Line type="monotone" dataKey="steps" stroke="#8884d8" dot={false} />
             </LineChart>
@@ -183,7 +185,7 @@ const StepPlanner = () => {
             <ul className="list-disc pl-5">
               {chartData.map((point, index) => (
                 <li key={index} className="mb-1">
-                  {point.time}: {point.steps} steps
+                  {new Date(point.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}: {point.steps} steps
                 </li>
               ))}
             </ul>
