@@ -38,7 +38,7 @@ const Metrics = ({ metrics }) => {
         <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg">
           <div className="flex justify-between items-center">
             <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
-              Minutes walked per hour
+              Minutes to walk per hour
             </span>
             <span className="text-2xl font-bold text-gray-800 dark:text-white">
               {metrics.minutesWalkPerHour}
