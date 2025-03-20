@@ -18,9 +18,9 @@ const InputForm = ({
   calculatePlan,
 }) => {
   return (
-    <>
-      <div className="grid grid-cols-2 gap-4 mb-4">
-        <div>
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="space-y-2">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
             Target Steps
           </label>
@@ -28,10 +28,10 @@ const InputForm = ({
             type="number"
             value={targetSteps}
             onChange={(e) => setTargetSteps(Number(e.target.value))}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
+            className="block w-full px-4 py-3 rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50 transition-all duration-200 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
           />
         </div>
-        <div>
+        <div className="space-y-2">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
             Target Time
           </label>
@@ -39,10 +39,10 @@ const InputForm = ({
             type="time"
             value={targetTime}
             onChange={(e) => setTargetTime(e.target.value)}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
+            className="block w-full px-4 py-3 rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50 transition-all duration-200 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
           />
         </div>
-        <div>
+        <div className="space-y-2">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
             Walking Pace (steps/min)
           </label>
@@ -50,36 +50,36 @@ const InputForm = ({
             type="number"
             value={walkingPace}
             onChange={(e) => setWalkingPace(Number(e.target.value))}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
+            className="block w-full px-4 py-3 rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50 transition-all duration-200 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
           />
         </div>
-        <div>
+        <div className="space-y-2">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
             Current Steps
           </label>
-          <div className="flex items-center">
+          <div className="flex">
             <input
               type="number"
               value={currentSteps}
               onChange={(e) => setCurrentSteps(Number(e.target.value))}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
+              className="block flex-1 w-full px-4 py-3 rounded-l-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50 transition-all duration-200 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
             />
             <button
               onClick={saveCurrentSteps}
-              className="ml-2 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50"
+              className="px-4 py-3 bg-green-500 text-white font-medium rounded-r-lg hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-50 transition-colors duration-200"
             >
               Save
             </button>
           </div>
         </div>
-        <div>
+        <div className="space-y-2">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
             Checkpoint Interval
           </label>
           <select
             value={checkpointInterval}
             onChange={(e) => setCheckpointInterval(Number(e.target.value))}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
+            className="block w-full px-4 py-3 rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50 transition-all duration-200 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
           >
             <option value="15">15 minutes</option>
             <option value="30">30 minutes</option>
@@ -88,13 +88,16 @@ const InputForm = ({
           </select>
         </div>
       </div>
-      <button
-        onClick={calculatePlan}
-        className="mb-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
-      >
-        Calculate Plan
-      </button>
-    </>
+      
+      <div className="pt-4">
+        <button
+          onClick={calculatePlan}
+          className="w-full py-3 px-6 bg-blue-600 text-white font-medium rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-all duration-200 transform hover:scale-[1.02]"
+        >
+          Calculate Plan
+        </button>
+      </div>
+    </div>
   );
 };
 
