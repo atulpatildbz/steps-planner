@@ -11,6 +11,7 @@ const StepPlanner = () => {
   const [chartData, setChartData] = useState([]);
   const [metrics, setMetrics] = useState({ stepsPerHour: 0, restWalkRatio: '0.00', minutesWalkPerHour: 0 });
   const [isDarkMode, setIsDarkMode] = useState(() => window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const [checkpointInterval, setCheckpointInterval] = useState(60); // minutes (60 = hourly, 30 = half-hourly)
 
   useEffect(() => {
     const savedData = localStorage.getItem('stepData');
@@ -55,7 +56,7 @@ const StepPlanner = () => {
 
     const stepsLeft = targetSteps - currentSteps;
     const stepsPerHour = Math.ceil(stepsLeft / timeLeft);
-
+    
     let newPlan = [];
     let accumulatedSteps = currentSteps;
 
@@ -65,12 +66,47 @@ const StepPlanner = () => {
       steps: currentSteps,
     });
 
-    for (let i = 1; i <= Math.ceil(timeLeft); i++) {
-      const time = new Date(now.getTime() + i * 3600000);
-      accumulatedSteps = Math.min(targetSteps, accumulatedSteps + stepsPerHour);
+    // Find the next even checkpoint time based on the interval
+    const roundToNextCheckpoint = (date) => {
+      const minutes = date.getMinutes();
+      const remainder = minutes % checkpointInterval;
+      
+      if (remainder === 0) {
+        // If we're exactly on a checkpoint, move to the next one
+        return new Date(date.getTime() + checkpointInterval * 60000);
+      }
+      
+      // Round up to the next checkpoint time
+      const minutesToAdd = checkpointInterval - remainder;
+      const nextTime = new Date(date.getTime() + minutesToAdd * 60000);
+      // Set seconds to 0 for even checkpoints
+      nextTime.setSeconds(0);
+      return nextTime;
+    };
+
+    // Generate checkpoints at even intervals
+    let checkpointTime = roundToNextCheckpoint(now);
+    
+    while (checkpointTime <= target) {
+      // Calculate how much time has passed since now (in hours)
+      const hoursPassed = (checkpointTime - now) / 3600000;
+      // Calculate expected steps based on hourly rate
+      accumulatedSteps = Math.min(targetSteps, currentSteps + Math.ceil(hoursPassed * stepsPerHour));
+      
       newPlan.push({
-        time: time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        time: checkpointTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         steps: accumulatedSteps,
+      });
+      
+      // Move to next checkpoint
+      checkpointTime = new Date(checkpointTime.getTime() + checkpointInterval * 60000);
+    }
+
+    // Add target time as the final checkpoint if it's not already included
+    if (newPlan[newPlan.length - 1].time !== target.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) {
+      newPlan.push({
+        time: target.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        steps: targetSteps,
       });
     }
 
@@ -116,6 +152,17 @@ const StepPlanner = () => {
       restWalkRatio,
       minutesWalkPerHour
     });
+  };
+
+  // Get the interval name based on the minutes
+  const getIntervalName = (minutes) => {
+    switch (minutes) {
+      case 15: return "15 minutes";
+      case 30: return "30 minutes";
+      case 60: return "1 hour";
+      case 120: return "2 hours";
+      default: return `${minutes} minutes`;
+    }
   };
 
   return (
@@ -172,6 +219,19 @@ const StepPlanner = () => {
             </button>
           </div>
         </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Checkpoint Interval</label>
+          <select
+            value={checkpointInterval}
+            onChange={(e) => setCheckpointInterval(Number(e.target.value))}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
+          >
+            <option value="15">15 minutes</option>
+            <option value="30">30 minutes</option>
+            <option value="60">1 hour</option>
+            <option value="120">2 hours</option>
+          </select>
+        </div>
       </div>
       <button 
         onClick={calculatePlan} 
@@ -205,7 +265,7 @@ const StepPlanner = () => {
             </LineChart>
           </ResponsiveContainer>
           <div className="mt-4">
-            <h3 className="text-lg font-semibold mb-2">Hourly Checkpoints</h3>
+            <h3 className="text-lg font-semibold mb-2">{getIntervalName(checkpointInterval)} Checkpoints</h3>
             <ul className="list-disc pl-5">
               {chartData.map((point, index) => {
                 const isPast = new Date(point.time) < new Date();
