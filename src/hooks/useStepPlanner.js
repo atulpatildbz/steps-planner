@@ -18,13 +18,45 @@ const useStepPlanner = () => {
     minutesWalkPerHour: 0,
   });
 
-  // Load saved data on component mount
+  // Helper to get today's date in YYYY-MM-DD format
+  const getTodayDateString = () => {
+    const today = new Date();
+    return today.toISOString().split("T")[0];
+  };
+
+  // Filter data to only include today's entries
+  const filterTodayData = (data) => {
+    const todayString = getTodayDateString();
+    return data.filter((item) => item.date === todayString);
+  };
+
+  // Load saved data on component mount and clean up old data
   useEffect(() => {
     const savedData = localStorage.getItem("stepData");
+
     if (savedData) {
       const parsedData = JSON.parse(savedData);
-      setHistoricalData(parsedData);
-      setCurrentSteps(parsedData[parsedData.length - 1].steps);
+
+      // Check if data has date field (for backward compatibility)
+      const hasDateField = parsedData.length > 0 && "date" in parsedData[0];
+
+      // If data has date field, filter to only today's data
+      const todayData = hasDateField ? filterTodayData(parsedData) : parsedData;
+
+      // If we have today's data, use it
+      if (todayData.length > 0) {
+        setHistoricalData(todayData);
+        setCurrentSteps(todayData[todayData.length - 1].steps);
+      } else {
+        // No today's data, reset
+        setHistoricalData([]);
+        setCurrentSteps(0);
+      }
+
+      // Update localStorage to only keep today's data
+      if (hasDateField && todayData.length !== parsedData.length) {
+        localStorage.setItem("stepData", JSON.stringify(todayData));
+      }
     }
   }, []);
 
@@ -32,12 +64,18 @@ const useStepPlanner = () => {
   const saveCurrentSteps = () => {
     const now = new Date();
     const newDataPoint = {
+      date: getTodayDateString(),
       time: now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       steps: currentSteps,
     };
+
     const updatedData = [...historicalData, newDataPoint];
-    setHistoricalData(updatedData);
-    localStorage.setItem("stepData", JSON.stringify(updatedData));
+
+    // Only keep today's data before saving
+    const todayData = filterTodayData(updatedData);
+
+    setHistoricalData(todayData);
+    localStorage.setItem("stepData", JSON.stringify(todayData));
   };
 
   // Calculate the step plan
