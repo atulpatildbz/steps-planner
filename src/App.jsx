@@ -1,20 +1,35 @@
-import { useState, useEffect } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { timeFormat } from 'd3-time-format';
+import { useState, useEffect } from "react";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
+import { timeFormat } from "d3-time-format";
 
 const StepPlanner = () => {
   const [targetSteps, setTargetSteps] = useState(8000);
-  const [targetTime, setTargetTime] = useState('18:00');
+  const [targetTime, setTargetTime] = useState("18:00");
   const [walkingPace, setWalkingPace] = useState(110);
   const [currentSteps, setCurrentSteps] = useState(0);
   const [historicalData, setHistoricalData] = useState([]);
   const [chartData, setChartData] = useState([]);
-  const [metrics, setMetrics] = useState({ stepsPerHour: 0, restWalkRatio: '0.00', minutesWalkPerHour: 0 });
-  const [isDarkMode, setIsDarkMode] = useState(() => window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const [metrics, setMetrics] = useState({
+    stepsPerHour: 0,
+    restWalkRatio: "0.00",
+    minutesWalkPerHour: 0,
+  });
+  const [isDarkMode, setIsDarkMode] = useState(
+    () => window.matchMedia("(prefers-color-scheme: dark)").matches
+  );
   const [checkpointInterval, setCheckpointInterval] = useState(60); // minutes (60 = hourly, 30 = half-hourly)
 
   useEffect(() => {
-    const savedData = localStorage.getItem('stepData');
+    const savedData = localStorage.getItem("stepData");
     if (savedData) {
       const parsedData = JSON.parse(savedData);
       setHistoricalData(parsedData);
@@ -23,46 +38,46 @@ const StepPlanner = () => {
   }, []);
 
   useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     const handleChange = (e) => setIsDarkMode(e.matches);
 
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
+    mediaQuery.addEventListener("change", handleChange);
+    return () => mediaQuery.removeEventListener("change", handleChange);
   }, []);
 
   useEffect(() => {
     if (isDarkMode) {
-      document.documentElement.classList.add('dark');
+      document.documentElement.classList.add("dark");
     } else {
-      document.documentElement.classList.remove('dark');
+      document.documentElement.classList.remove("dark");
     }
   }, [isDarkMode]);
 
   const saveCurrentSteps = () => {
     const now = new Date();
     const newDataPoint = {
-      time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      steps: currentSteps
+      time: now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      steps: currentSteps,
     };
     const updatedData = [...historicalData, newDataPoint];
     setHistoricalData(updatedData);
-    localStorage.setItem('stepData', JSON.stringify(updatedData));
+    localStorage.setItem("stepData", JSON.stringify(updatedData));
   };
 
   const calculatePlan = () => {
     const now = new Date();
-    const target = new Date(now.toDateString() + ' ' + targetTime);
+    const target = new Date(now.toDateString() + " " + targetTime);
     const timeLeft = (target - now) / 3600000; // hours left
 
     const stepsLeft = targetSteps - currentSteps;
     const stepsPerHour = Math.ceil(stepsLeft / timeLeft);
-    
+
     let newPlan = [];
     let accumulatedSteps = currentSteps;
 
     // Add current steps and time as the first point in the plan
     newPlan.push({
-      time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      time: now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       steps: currentSteps,
     });
 
@@ -70,12 +85,12 @@ const StepPlanner = () => {
     const roundToNextCheckpoint = (date) => {
       const minutes = date.getMinutes();
       const remainder = minutes % checkpointInterval;
-      
+
       if (remainder === 0) {
         // If we're exactly on a checkpoint, move to the next one
         return new Date(date.getTime() + checkpointInterval * 60000);
       }
-      
+
       // Round up to the next checkpoint time
       const minutesToAdd = checkpointInterval - remainder;
       const nextTime = new Date(date.getTime() + minutesToAdd * 60000);
@@ -86,43 +101,59 @@ const StepPlanner = () => {
 
     // Generate checkpoints at even intervals
     let checkpointTime = roundToNextCheckpoint(now);
-    
+
     while (checkpointTime <= target) {
       // Calculate how much time has passed since now (in hours)
       const hoursPassed = (checkpointTime - now) / 3600000;
       // Calculate expected steps based on hourly rate
-      accumulatedSteps = Math.min(targetSteps, currentSteps + Math.ceil(hoursPassed * stepsPerHour));
-      
+      accumulatedSteps = Math.min(
+        targetSteps,
+        currentSteps + Math.ceil(hoursPassed * stepsPerHour)
+      );
+
       newPlan.push({
-        time: checkpointTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        time: checkpointTime.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
         steps: accumulatedSteps,
       });
-      
+
       // Move to next checkpoint
-      checkpointTime = new Date(checkpointTime.getTime() + checkpointInterval * 60000);
+      checkpointTime = new Date(
+        checkpointTime.getTime() + checkpointInterval * 60000
+      );
     }
 
     // Add target time as the final checkpoint if it's not already included
-    if (newPlan[newPlan.length - 1].time !== target.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })) {
+    if (
+      newPlan[newPlan.length - 1].time !==
+      target.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    ) {
       newPlan.push({
-        time: target.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        time: target.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
         steps: targetSteps,
       });
     }
 
     const combinedData = [
-      ...historicalData.map(point => ({
+      ...historicalData.map((point) => ({
         ...point,
-        time: new Date(now.toDateString() + ' ' + point.time)
+        time: new Date(now.toDateString() + " " + point.time),
       })),
-      ...newPlan.map(point => ({
+      ...newPlan.map((point) => ({
         ...point,
-        time: new Date(now.toDateString() + ' ' + point.time)
-      }))
+        time: new Date(now.toDateString() + " " + point.time),
+      })),
     ];
 
     // Remove duplicates based on time
-    const uniqueData = Array.from(new Map(combinedData.map(item => [item.time.getTime(), item])).values());
+    const uniqueData = Array.from(
+      new Map(combinedData.map((item) => [item.time.getTime(), item])).values()
+    );
 
     // Sort the combined data by time
     uniqueData.sort((a, b) => a.time - b.time);
@@ -135,10 +166,12 @@ const StepPlanner = () => {
       return time;
     };
 
-    setChartData(uniqueData.map(point => ({
-      time: new Date(adjustTime(point.time)).getTime(), // Convert to timestamp
-      steps: point.steps
-    })));
+    setChartData(
+      uniqueData.map((point) => ({
+        time: new Date(adjustTime(point.time)).getTime(), // Convert to timestamp
+        steps: point.steps,
+      }))
+    );
 
     // Calculate rest:walk ratio
     const totalMinutes = timeLeft * 60;
@@ -150,18 +183,23 @@ const StepPlanner = () => {
     setMetrics({
       stepsPerHour,
       restWalkRatio,
-      minutesWalkPerHour
+      minutesWalkPerHour,
     });
   };
 
   // Get the interval name based on the minutes
   const getIntervalName = (minutes) => {
     switch (minutes) {
-      case 15: return "15 minutes";
-      case 30: return "30 minutes";
-      case 60: return "1 hour";
-      case 120: return "2 hours";
-      default: return `${minutes} minutes`;
+      case 15:
+        return "15 minutes";
+      case 30:
+        return "30 minutes";
+      case 60:
+        return "1 hour";
+      case 120:
+        return "2 hours";
+      default:
+        return `${minutes} minutes`;
     }
   };
 
@@ -176,7 +214,9 @@ const StepPlanner = () => {
       </button>
       <div className="grid grid-cols-2 gap-4 mb-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Target Steps</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            Target Steps
+          </label>
           <input
             type="number"
             value={targetSteps}
@@ -185,7 +225,9 @@ const StepPlanner = () => {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Target Time</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            Target Time
+          </label>
           <input
             type="time"
             value={targetTime}
@@ -194,7 +236,9 @@ const StepPlanner = () => {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Walking Pace (steps/min)</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            Walking Pace (steps/min)
+          </label>
           <input
             type="number"
             value={walkingPace}
@@ -203,7 +247,9 @@ const StepPlanner = () => {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Current Steps</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            Current Steps
+          </label>
           <div className="flex items-center">
             <input
               type="number"
@@ -220,7 +266,9 @@ const StepPlanner = () => {
           </div>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Checkpoint Interval</label>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            Checkpoint Interval
+          </label>
           <select
             value={checkpointInterval}
             onChange={(e) => setCheckpointInterval(Number(e.target.value))}
@@ -233,45 +281,70 @@ const StepPlanner = () => {
           </select>
         </div>
       </div>
-      <button 
-        onClick={calculatePlan} 
+      <button
+        onClick={calculatePlan}
         className="mb-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
       >
         Calculate Plan
       </button>
-      
+
       {chartData.length > 0 && (
         <div className="mb-4">
           <h2 className="text-xl font-semibold mb-2">Your Step Plan</h2>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis 
-                dataKey="time" 
+              <XAxis
+                dataKey="time"
                 type="number"
                 scale="time"
-                domain={['auto', 'auto']}
-                tickFormatter={(timeStr) => timeFormat("%H:%M")(new Date(timeStr))}
+                domain={["auto", "auto"]}
+                tickFormatter={(timeStr) =>
+                  timeFormat("%H:%M")(new Date(timeStr))
+                }
                 className="dark:text-gray-300"
               />
-              <YAxis 
-                domain={[0, 'dataMax']}
+              <YAxis
+                domain={[0, "dataMax"]}
                 tickFormatter={(value) => Math.round(value)}
                 className="dark:text-gray-300"
               />
-              <Tooltip labelFormatter={(timeStr) => timeFormat("%H:%M")(new Date(timeStr))} contentStyle={{backgroundColor: 'var(--bg-color)', color: 'var(--text-color)'}} itemStyle={{color: 'var(--text-color)'}} />
+              <Tooltip
+                labelFormatter={(timeStr) =>
+                  timeFormat("%H:%M")(new Date(timeStr))
+                }
+                contentStyle={{
+                  backgroundColor: "var(--bg-color)",
+                  color: "var(--text-color)",
+                }}
+                itemStyle={{ color: "var(--text-color)" }}
+              />
               <Legend />
-              <Line type="monotone" dataKey="steps" stroke="#8884d8" dot={false} />
+              <Line
+                type="monotone"
+                dataKey="steps"
+                stroke="#8884d8"
+                dot={false}
+              />
             </LineChart>
           </ResponsiveContainer>
           <div className="mt-4">
-            <h3 className="text-lg font-semibold mb-2">{getIntervalName(checkpointInterval)} Checkpoints</h3>
+            <h3 className="text-lg font-semibold mb-2">
+              {getIntervalName(checkpointInterval)} Checkpoints
+            </h3>
             <ul className="list-disc pl-5">
               {chartData.map((point, index) => {
                 const isPast = new Date(point.time) < new Date();
                 return (
-                  <li key={index} className={`mb-1 ${isPast ? 'text-gray-400' : ''}`}>
-                    {new Date(point.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}: {point.steps} steps
+                  <li
+                    key={index}
+                    className={`mb-1 ${isPast ? "text-gray-400" : ""}`}
+                  >
+                    {new Date(point.time).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                    : {point.steps} steps
                   </li>
                 );
               })}
@@ -285,7 +358,7 @@ const StepPlanner = () => {
           </div>
         </div>
       )}
- </div>   
+    </div>
   );
 };
 
