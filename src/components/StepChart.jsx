@@ -43,7 +43,7 @@ CustomTooltip.propTypes = {
 /**
  * Chart component for displaying step progression
  */
-const StepChart = ({ chartData }) => {
+const StepChart = ({ chartData, targetSteps }) => {
   // Get current time for reference line
   const now = new Date().getTime();
   
@@ -90,6 +90,20 @@ const StepChart = ({ chartData }) => {
               fontSize: 12
             }} 
           />
+
+          {/* Target steps reference line */}
+          <ReferenceLine 
+            y={targetSteps} 
+            stroke="#10B981" 
+            strokeWidth={2} 
+            strokeDasharray="4 4" 
+            label={{ 
+              value: `Target (${targetSteps.toLocaleString()})`, 
+              position: "right",
+              fill: "#10B981",
+              fontSize: 12
+            }} 
+          />
           
           <Line 
             type="monotone" 
@@ -119,6 +133,7 @@ StepChart.propTypes = {
       steps: PropTypes.number.isRequired,
     })
   ).isRequired,
+  targetSteps: PropTypes.number,
 };
 
 export default StepChart;

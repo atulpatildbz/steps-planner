@@ -16,9 +16,27 @@ const InputForm = ({
   setCheckpointInterval,
   saveCurrentSteps,
   calculatePlan,
+  autoPlan,
 }) => {
+  const mobilePresets = [
+    { label: "8k@6p", steps: 8000, time: "18:00" },
+    { label: "10k@8p", steps: 10000, time: "20:00" },
+  ];
+
   return (
     <div className="space-y-6">
+      <div className="flex sm:hidden gap-2 -mt-2">
+        {mobilePresets.map((p) => (
+          <button
+            key={p.label}
+            onClick={() => { setTargetSteps(p.steps); setTargetTime(p.time); }}
+            className="px-2 py-1 text-xs rounded-md bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="space-y-2">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -26,8 +44,11 @@ const InputForm = ({
           </label>
           <input
             type="number"
+            inputMode="numeric"
+            min={0}
+            step={100}
             value={targetSteps}
-            onChange={(e) => setTargetSteps(Number(e.target.value))}
+            onChange={(e) => setTargetSteps(Math.max(0, Number(e.target.value)))}
             className="block w-full px-4 py-3 rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50 transition-all duration-200 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
           />
         </div>
@@ -48,10 +69,15 @@ const InputForm = ({
           </label>
           <input
             type="number"
+            inputMode="numeric"
+            min={30}
+            max={300}
+            step={5}
             value={walkingPace}
-            onChange={(e) => setWalkingPace(Number(e.target.value))}
+            onChange={(e) => setWalkingPace(Math.min(300, Math.max(30, Number(e.target.value))))}
             className="block w-full px-4 py-3 rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50 transition-all duration-200 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
           />
+          <p className="text-xs text-gray-500 dark:text-gray-400">Typical range 80–130 steps/min</p>
         </div>
         <div className="space-y-2">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -60,8 +86,11 @@ const InputForm = ({
           <div className="flex">
             <input
               type="number"
+              inputMode="numeric"
+              min={0}
+              step={100}
               value={currentSteps}
-              onChange={(e) => setCurrentSteps(Number(e.target.value))}
+              onChange={(e) => setCurrentSteps(Math.max(0, Number(e.target.value)))}
               className="block flex-1 w-full px-4 py-3 rounded-l-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-200 focus:ring-opacity-50 transition-all duration-200 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
             />
             <button
@@ -89,14 +118,16 @@ const InputForm = ({
         </div>
       </div>
       
-      <div className="pt-4">
-        <button
-          onClick={calculatePlan}
-          className="w-full py-3 px-6 bg-blue-600 text-white font-medium rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-all duration-200 transform hover:scale-[1.02]"
-        >
-          Calculate Plan
-        </button>
-      </div>
+      {!autoPlan && (
+        <div className="pt-2">
+          <button
+            onClick={calculatePlan}
+            className="w-full py-3 px-6 bg-blue-600 text-white font-medium rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition-all duration-200 transform hover:scale-[1.02]"
+          >
+            Calculate Plan
+          </button>
+        </div>
+      )}
     </div>
   );
 };
@@ -115,6 +146,7 @@ InputForm.propTypes = {
   setCheckpointInterval: PropTypes.func.isRequired,
   saveCurrentSteps: PropTypes.func.isRequired,
   calculatePlan: PropTypes.func.isRequired,
+  autoPlan: PropTypes.bool.isRequired,
 };
 
 export default InputForm;

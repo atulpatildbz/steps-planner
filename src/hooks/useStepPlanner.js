@@ -5,18 +5,70 @@ import { useState, useEffect } from "react";
  * @returns {Object} Step planning state and functions
  */
 const useStepPlanner = () => {
-  const [targetSteps, setTargetSteps] = useState(8000);
-  const [targetTime, setTargetTime] = useState("18:00");
-  const [walkingPace, setWalkingPace] = useState(110);
-  const [currentSteps, setCurrentSteps] = useState(0);
+  const getFromStorageNumber = (key, fallback) => {
+    const raw = localStorage.getItem(key);
+    const parsed = raw !== null ? Number(raw) : NaN;
+    return Number.isFinite(parsed) ? parsed : fallback;
+  };
+
+  const getFromStorageString = (key, fallback) => {
+    const raw = localStorage.getItem(key);
+    return raw !== null ? raw : fallback;
+  };
+
+  const getFromStorageBool = (key, fallback) => {
+    const raw = localStorage.getItem(key);
+    if (raw === null) return fallback;
+    return raw === "true";
+  };
+
+  const [targetSteps, setTargetSteps] = useState(() => getFromStorageNumber("targetSteps", 8000));
+  const [targetTime, setTargetTime] = useState(() => getFromStorageString("targetTime", "18:00"));
+  const [walkingPace, setWalkingPace] = useState(() => getFromStorageNumber("walkingPace", 110));
+  const [currentSteps, setCurrentSteps] = useState(() => getFromStorageNumber("currentSteps", 0));
   const [historicalData, setHistoricalData] = useState([]);
   const [chartData, setChartData] = useState([]);
-  const [checkpointInterval, setCheckpointInterval] = useState(60);
+  const [checkpointInterval, setCheckpointInterval] = useState(() => getFromStorageNumber("checkpointInterval", 60));
+  const [autoPlan, setAutoPlan] = useState(() => getFromStorageBool("autoPlan", true));
+  const [status, setStatus] = useState({
+    stepsLeft: 0,
+    percentComplete: 0,
+    timeLeftHours: 0,
+    walkingMinutesTotal: 0,
+    restMinutesTotal: 0,
+    minutesToWalkThisHour: 0,
+    targetPassed: false,
+  });
   const [metrics, setMetrics] = useState({
     stepsPerHour: 0,
     restWalkRatio: "0.00",
     minutesWalkPerHour: 0,
   });
+
+  // Persist settings
+  useEffect(() => {
+    localStorage.setItem("targetSteps", String(targetSteps));
+  }, [targetSteps]);
+
+  useEffect(() => {
+    localStorage.setItem("targetTime", targetTime);
+  }, [targetTime]);
+
+  useEffect(() => {
+    localStorage.setItem("walkingPace", String(walkingPace));
+  }, [walkingPace]);
+
+  useEffect(() => {
+    localStorage.setItem("currentSteps", String(currentSteps));
+  }, [currentSteps]);
+
+  useEffect(() => {
+    localStorage.setItem("checkpointInterval", String(checkpointInterval));
+  }, [checkpointInterval]);
+
+  useEffect(() => {
+    localStorage.setItem("autoPlan", String(autoPlan));
+  }, [autoPlan]);
 
   // Helper to get today's date in YYYY-MM-DD format
   const getTodayDateString = () => {
@@ -60,7 +112,7 @@ const useStepPlanner = () => {
     }
   }, []);
 
-  // Save current steps to local storage
+  // Save current steps to local storage (log a checkpoint)
   const saveCurrentSteps = () => {
     const now = new Date();
     const newDataPoint = {
@@ -76,15 +128,63 @@ const useStepPlanner = () => {
 
     setHistoricalData(todayData);
     localStorage.setItem("stepData", JSON.stringify(todayData));
+
+    if (autoPlan) {
+      // Recalculate after logging
+      calculatePlan();
+    }
+  };
+
+  const resetToday = () => {
+    setHistoricalData([]);
+    setCurrentSteps(0);
+    localStorage.setItem("stepData", JSON.stringify([]));
+    setChartData([]);
   };
 
   // Calculate the step plan
   const calculatePlan = () => {
     const now = new Date();
     const target = new Date(now.toDateString() + " " + targetTime);
+
+    // If target time is earlier than now (today), assume it's for tomorrow
+    if (target < now) {
+      // Mark as passed for today and compute status accordingly
+      const stepsLeft = Math.max(0, targetSteps - currentSteps);
+      setMetrics({ stepsPerHour: 0, restWalkRatio: "0.00", minutesWalkPerHour: 0 });
+      setStatus({
+        stepsLeft,
+        percentComplete: Math.min(100, (currentSteps / targetSteps) * 100) || 0,
+        timeLeftHours: 0,
+        walkingMinutesTotal: 0,
+        restMinutesTotal: 0,
+        minutesToWalkThisHour: 0,
+        targetPassed: true,
+      });
+      setChartData([]);
+      return;
+    }
+
     const timeLeft = (target - now) / 3600000; // hours left
 
-    const stepsLeft = targetSteps - currentSteps;
+    const stepsLeft = Math.max(0, targetSteps - currentSteps);
+
+    // Guard divide by zero
+    if (timeLeft <= 0 || stepsLeft === 0) {
+      setMetrics({ stepsPerHour: 0, restWalkRatio: "0.00", minutesWalkPerHour: 0 });
+      setStatus({
+        stepsLeft,
+        percentComplete: Math.min(100, (currentSteps / targetSteps) * 100) || 0,
+        timeLeftHours: Math.max(0, timeLeft),
+        walkingMinutesTotal: 0,
+        restMinutesTotal: 0,
+        minutesToWalkThisHour: 0,
+        targetPassed: timeLeft <= 0,
+      });
+      setChartData([]);
+      return;
+    }
+
     const stepsPerHour = Math.ceil(stepsLeft / timeLeft);
 
     let newPlan = [];
@@ -188,11 +288,11 @@ const useStepPlanner = () => {
       }))
     );
 
-    // Calculate rest:walk ratio
+    // Calculate rest:walk ratio and related stats
     const totalMinutes = timeLeft * 60;
     const walkingMinutes = stepsLeft / walkingPace;
-    const restMinutes = totalMinutes - walkingMinutes;
-    const restWalkRatio = (restMinutes / walkingMinutes).toFixed(2);
+    const restMinutes = Math.max(0, totalMinutes - walkingMinutes);
+    const restWalkRatio = walkingMinutes > 0 ? (restMinutes / walkingMinutes).toFixed(2) : "0.00";
     const minutesWalkPerHour = (walkingMinutes / timeLeft).toFixed(2);
 
     setMetrics({
@@ -200,7 +300,27 @@ const useStepPlanner = () => {
       restWalkRatio,
       minutesWalkPerHour,
     });
+
+    setStatus({
+      stepsLeft,
+      percentComplete: Math.min(100, (currentSteps / targetSteps) * 100) || 0,
+      timeLeftHours: timeLeft,
+      walkingMinutesTotal: walkingMinutes,
+      restMinutesTotal: restMinutes,
+      minutesToWalkThisHour: Math.max(0, Math.round(walkingMinutes / timeLeft)),
+      targetPassed: false,
+    });
   };
+
+  // Debounced auto-calc
+  useEffect(() => {
+    if (!autoPlan) return;
+    const id = setTimeout(() => {
+      calculatePlan();
+    }, 300);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [targetSteps, targetTime, walkingPace, currentSteps, checkpointInterval, autoPlan]);
 
   // Get the interval name based on the minutes
   const getIntervalName = (minutes) => {
@@ -232,7 +352,11 @@ const useStepPlanner = () => {
     checkpointInterval,
     setCheckpointInterval,
     metrics,
+    status,
+    autoPlan,
+    setAutoPlan,
     saveCurrentSteps,
+    resetToday,
     calculatePlan,
     getIntervalName,
   };
