@@ -17,12 +17,12 @@ const CheckpointStrip = ({ checkpoints, now }) => {
         return (
           <div
             key={cp.time}
-            className={`flex flex-col items-center shrink-0 px-2.5 py-1 border-r border-gray-100 dark:border-gray-700/60 last:border-r-0 ${
+            className={`flex flex-col items-center shrink-0 px-2.5 py-1 border-r border-slate-100 dark:border-slate-700/60 last:border-r-0 ${
               isPast
-                ? "text-gray-300 dark:text-gray-600"
+                ? "text-slate-300 dark:text-slate-600"
                 : isNext
-                ? "text-blue-600 dark:text-blue-400 font-semibold"
-                : "text-gray-600 dark:text-gray-300"
+                ? "text-indigo-600 dark:text-indigo-400 font-semibold"
+                : "text-slate-600 dark:text-slate-300"
             }`}
           >
             <span className="tabular-nums">{fmt(new Date(cp.time)).toLowerCase()}</span>

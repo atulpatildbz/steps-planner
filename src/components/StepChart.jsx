@@ -17,8 +17,8 @@ const fmtTime = timeFormat("%I:%M %p");
 const CustomTooltip = ({ active, payload, label }) => {
   if (!active || !payload || !payload.length) return null;
   return (
-    <div className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg text-sm">
-      <p className="text-gray-500 dark:text-gray-400 mb-1">{fmtTime(new Date(label))}</p>
+    <div className="bg-white dark:bg-slate-800 p-3 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg text-sm">
+      <p className="text-slate-500 dark:text-slate-400 mb-1">{fmtTime(new Date(label))}</p>
       {payload.map((p) => (
         <p key={p.dataKey} className="font-semibold" style={{ color: p.color }}>
           {p.name}: {Math.round(p.value).toLocaleString()}
@@ -42,14 +42,14 @@ const StepChart = ({ chartData, targetSteps, now, compact = false }) => {
     <div className="rounded-lg">
       <ResponsiveContainer width="100%" height={compact ? 132 : 280}>
         <LineChart data={chartData} margin={{ top: 8, right: 10, left: compact ? 2 : 4, bottom: 0 }}>
-          {!compact && <CartesianGrid strokeDasharray="3 3" stroke="#9ca3af" strokeOpacity={0.2} />}
+          {!compact && <CartesianGrid strokeDasharray="3 3" stroke="#94a3b8" strokeOpacity={0.2} />}
           <XAxis
             dataKey="time"
             type="number"
             scale="time"
             domain={["dataMin", "dataMax"]}
             tickFormatter={(t) => timeFormat("%-I%p")(new Date(t)).toLowerCase()}
-            stroke="#9ca3af"
+            stroke="#94a3b8"
             fontSize={10}
             tickMargin={6}
             tickLine={false}
@@ -59,7 +59,7 @@ const StepChart = ({ chartData, targetSteps, now, compact = false }) => {
           <YAxis
             domain={[0, "dataMax"]}
             tickFormatter={(v) => (v >= 1000 ? `${v / 1000}k` : v)}
-            stroke="#9ca3af"
+            stroke="#94a3b8"
             fontSize={10}
             width={compact ? 0 : 40}
             tick={!compact}
@@ -70,7 +70,7 @@ const StepChart = ({ chartData, targetSteps, now, compact = false }) => {
           {!compact && (
             <Legend
               wrapperStyle={{ paddingTop: 8 }}
-              formatter={(value) => <span className="text-gray-700 dark:text-gray-300 text-sm font-medium">{value}</span>}
+              formatter={(value) => <span className="text-slate-700 dark:text-slate-300 text-sm font-medium">{value}</span>}
             />
           )}
 
@@ -78,9 +78,9 @@ const StepChart = ({ chartData, targetSteps, now, compact = false }) => {
           <ReferenceLine y={targetSteps} stroke="#10b981" strokeDasharray="4 4" strokeOpacity={0.5} />
 
           {/* Frozen morning plan */}
-          <Line type="monotone" dataKey="ideal" name="Plan" stroke="#9ca3af" strokeWidth={1.5} strokeDasharray="5 4" dot={false} isAnimationActive={false} />
+          <Line type="monotone" dataKey="ideal" name="Plan" stroke="#94a3b8" strokeWidth={1.5} strokeDasharray="5 4" dot={false} isAnimationActive={false} />
           {/* Live catch-up to still finish */}
-          <Line type="monotone" dataKey="catchup" name="Catch-up" stroke="#3b82f6" strokeWidth={2} dot={false} connectNulls isAnimationActive={false} />
+          <Line type="monotone" dataKey="catchup" name="Catch-up" stroke="#6366f1" strokeWidth={2} dot={false} connectNulls isAnimationActive={false} />
           {/* Your actual logged counts */}
           <Line
             type="monotone"

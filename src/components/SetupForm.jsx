@@ -1,8 +1,8 @@
 import PropTypes from "prop-types";
 
 const field =
-  "block w-full px-3 py-2.5 rounded-lg border border-gray-200 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-900/50 outline-none transition tabular-nums dark:bg-gray-900 dark:border-gray-700 dark:text-white";
-const labelCls = "block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1";
+  "block w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:focus:ring-indigo-900/50 outline-none transition tabular-nums dark:bg-slate-800 dark:border-slate-700 dark:text-white";
+const labelCls = "block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1";
 
 const presets = [
   { label: "8k by 6 PM", steps: 8000, time: "18:00" },
@@ -25,9 +25,9 @@ const SetupForm = ({
   startPlan,
 }) => {
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-5 sm:p-6">
-      <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-0.5">Plan today&apos;s goal</h2>
-      <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Set your target, then tap Start to lock in the plan.</p>
+    <div className="bg-white dark:bg-slate-900 rounded-2xl ring-1 ring-slate-900/5 dark:ring-white/10 shadow-xl shadow-slate-900/5 dark:shadow-black/30 p-5 sm:p-6">
+      <h2 className="text-base font-semibold text-slate-900 dark:text-white mb-0.5">Plan today&apos;s goal</h2>
+      <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Set your target, then tap Start to lock in the plan.</p>
 
       <div className="flex flex-wrap gap-2 mb-5">
         {presets.map((p) => (
@@ -39,8 +39,8 @@ const SetupForm = ({
             }}
             className={`px-3 py-1.5 text-sm rounded-full border transition ${
               targetSteps === p.steps && targetTime === p.time
-                ? "bg-blue-600 text-white border-blue-600"
-                : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-transparent hover:bg-gray-200 dark:hover:bg-gray-600"
+                ? "bg-indigo-600 text-white border-indigo-600"
+                : "bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 border-transparent hover:bg-slate-200 dark:hover:bg-slate-600"
             }`}
           >
             {p.label}
@@ -89,13 +89,13 @@ const SetupForm = ({
             onChange={(e) => setWalkingPace(Math.min(300, Math.max(30, Number(e.target.value))))}
             className={field}
           />
-          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Typical 80–130</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Typical 80–130</p>
         </div>
       </div>
 
       <button
         onClick={startPlan}
-        className="mt-5 w-full py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 active:scale-[0.99] transition"
+        className="mt-5 w-full py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 active:scale-[0.99] transition"
       >
         Start plan
       </button>

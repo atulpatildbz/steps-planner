@@ -9,10 +9,10 @@ const fmtClock = timeFormat("%-I:%M %p");
 const STATES = {
   done: { label: "Goal reached", ring: "#22c55e", chip: "bg-green-500", pulse: false },
   ahead: { label: "Ahead", ring: "#22c55e", chip: "bg-green-500", pulse: false },
-  ontrack: { label: "On track", ring: "#3b82f6", chip: "bg-blue-500", pulse: false },
+  ontrack: { label: "On track", ring: "#6366f1", chip: "bg-indigo-500", pulse: false },
   behind: { label: "Behind", ring: "#f59e0b", chip: "bg-amber-500", pulse: true },
   unreachable: { label: "Unreachable", ring: "#ef4444", chip: "bg-red-500", pulse: true },
-  timeup: { label: "Time's up", ring: "#6b7280", chip: "bg-gray-500", pulse: false },
+  timeup: { label: "Time's up", ring: "#6b7280", chip: "bg-slate-500", pulse: false },
 };
 
 const ProgressRing = ({ percent, color }) => {
@@ -21,7 +21,7 @@ const ProgressRing = ({ percent, color }) => {
   const offset = c - (Math.min(100, percent) / 100) * c;
   return (
     <svg width="104" height="104" viewBox="0 0 104 104" className="shrink-0">
-      <circle cx="52" cy="52" r={r} fill="none" stroke="currentColor" strokeWidth="9" className="text-gray-200 dark:text-gray-800" />
+      <circle cx="52" cy="52" r={r} fill="none" stroke="currentColor" strokeWidth="9" className="text-slate-200 dark:text-slate-800" />
       <circle
         cx="52"
         cy="52"
@@ -35,10 +35,10 @@ const ProgressRing = ({ percent, color }) => {
         transform="rotate(-90 52 52)"
         style={{ transition: "stroke-dashoffset 0.5s ease, stroke 0.3s ease" }}
       />
-      <text x="52" y="50" textAnchor="middle" className="fill-gray-900 dark:fill-white tabular-nums" fontSize="22" fontWeight="700">
+      <text x="52" y="50" textAnchor="middle" className="fill-slate-900 dark:fill-white tabular-nums" fontSize="22" fontWeight="700">
         {Math.round(percent)}%
       </text>
-      <text x="52" y="67" textAnchor="middle" className="fill-gray-400 dark:fill-gray-500" fontSize="9.5" letterSpacing="0.5">
+      <text x="52" y="67" textAnchor="middle" className="fill-slate-400 dark:fill-slate-500" fontSize="9.5" letterSpacing="0.5">
         OF GOAL
       </text>
     </svg>
@@ -67,7 +67,7 @@ const Hero = ({ derived, currentSteps, logSteps, setTargetTime, setTargetSteps }
             {s.label}
           </span>
           {derived.state !== "done" && derived.state !== "timeup" && (
-            <span className="text-xs font-medium text-gray-400 dark:text-gray-500 tabular-nums">
+            <span className="text-xs font-medium text-slate-400 dark:text-slate-500 tabular-nums">
               {ahead ? "+" : "−"}
               {fmtK(Math.abs(derived.diff))} vs plan
             </span>
@@ -76,21 +76,21 @@ const Hero = ({ derived, currentSteps, logSteps, setTargetTime, setTargetSteps }
 
         {/* headline */}
         {derived.state === "done" ? (
-          <p className="text-xl font-bold text-gray-900 dark:text-white">🎉 {currentSteps.toLocaleString()} — goal smashed</p>
+          <p className="text-xl font-bold text-slate-900 dark:text-white">🎉 {currentSteps.toLocaleString()} — goal smashed</p>
         ) : derived.state === "timeup" ? (
-          <p className="text-sm text-gray-600 dark:text-gray-300">
+          <p className="text-sm text-slate-600 dark:text-slate-300">
             Target passed, {fmtK(derived.stepsLeft)} short. Tap ↻ to set a new target.
           </p>
         ) : derived.state === "unreachable" ? (
           <div>
-            <p className="text-lg font-bold text-gray-900 dark:text-white leading-snug">Pace isn&apos;t realistic anymore.</p>
+            <p className="text-lg font-bold text-slate-900 dark:text-white leading-snug">Pace isn&apos;t realistic anymore.</p>
             {derived.suggestion && (
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                <button onClick={() => setTargetTime(derived.suggestion.suggestedTime)} className="font-semibold text-blue-600 dark:text-blue-400 underline">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                <button onClick={() => setTargetTime(derived.suggestion.suggestedTime)} className="font-semibold text-indigo-600 dark:text-indigo-400 underline">
                   push to {fmtClock(new Date(`2000-01-01T${derived.suggestion.suggestedTime}`))}
                 </button>{" "}
                 or{" "}
-                <button onClick={() => setTargetSteps(derived.suggestion.suggestedGoal)} className="font-semibold text-blue-600 dark:text-blue-400 underline">
+                <button onClick={() => setTargetSteps(derived.suggestion.suggestedGoal)} className="font-semibold text-indigo-600 dark:text-indigo-400 underline">
                   drop to {fmtK(derived.suggestion.suggestedGoal)}
                 </button>
                 , then ↻
@@ -99,14 +99,14 @@ const Hero = ({ derived, currentSteps, logSteps, setTargetTime, setTargetSteps }
           </div>
         ) : (
           <div className="leading-none">
-            <span className="text-[11px] uppercase tracking-wide text-gray-400 dark:text-gray-500">Next {derived.windowMin} min</span>
-            <p className="text-2xl sm:text-3xl font-extrabold text-gray-900 dark:text-white tabular-nums mt-0.5">
+            <span className="text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">Next {derived.windowMin} min</span>
+            <p className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tabular-nums mt-0.5">
               Walk {derived.minutesNextWindow}<span className="text-lg font-bold">m</span>
-              <span className="text-sm font-medium text-gray-400 dark:text-gray-500"> · {fmtK(derived.stepsNextWindow)}</span>
+              <span className="text-sm font-medium text-slate-400 dark:text-slate-500"> · {fmtK(derived.stepsNextWindow)}</span>
             </p>
             {derived.nextCp && (
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 tabular-nums">
-                reach <span className="font-semibold text-gray-700 dark:text-gray-200">{derived.nextCp.target.toLocaleString()}</span> by {fmtClock(new Date(derived.nextCp.time))}
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 tabular-nums">
+                reach <span className="font-semibold text-slate-700 dark:text-slate-200">{derived.nextCp.target.toLocaleString()}</span> by {fmtClock(new Date(derived.nextCp.time))}
               </p>
             )}
           </div>
@@ -123,9 +123,9 @@ const Hero = ({ derived, currentSteps, logSteps, setTargetTime, setTargetSteps }
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && submit()}
             aria-label="Current steps from your phone"
-            className="flex-1 w-full px-3 py-2 text-base tabular-nums rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 dark:text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-900/50 outline-none transition"
+            className="flex-1 w-full px-3 py-2 text-base tabular-nums rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 dark:text-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:focus:ring-indigo-900/50 outline-none transition"
           />
-          <button onClick={submit} className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 active:scale-95 transition">
+          <button onClick={submit} className="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 active:scale-95 transition">
             Update
           </button>
         </div>

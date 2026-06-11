@@ -32,17 +32,17 @@ const StepPlanner = () => {
   } = useStepPlanner();
 
   const iconBtn =
-    "h-8 w-8 inline-flex items-center justify-center text-sm rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition";
+    "h-8 w-8 inline-flex items-center justify-center text-sm rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition";
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 transition-colors">
       <div className="max-w-2xl mx-auto px-3 py-4 sm:px-4 sm:py-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-3 px-1">
           <div className="flex items-baseline gap-2 min-w-0">
-            <h1 className="text-lg font-bold text-gray-900 dark:text-white shrink-0">Step Planner</h1>
+            <h1 className="text-lg font-bold text-slate-900 dark:text-white shrink-0">Step Planner</h1>
             {isActive && derived && (
-              <span className="text-sm text-gray-400 dark:text-gray-500 truncate tabular-nums">
+              <span className="text-sm text-slate-400 dark:text-slate-500 truncate tabular-nums">
                 {plan.targetSteps.toLocaleString()} by {fmtClock(new Date(derived.targetTimeMs))}
               </span>
             )}
@@ -72,7 +72,7 @@ const StepPlanner = () => {
             startPlan={startPlan}
           />
         ) : (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden divide-y divide-gray-100 dark:divide-gray-700/60">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl ring-1 ring-slate-900/5 dark:ring-white/10 shadow-xl shadow-slate-900/5 dark:shadow-black/30 overflow-hidden divide-y divide-slate-100 dark:divide-slate-800">
             <Hero
               derived={derived}
               currentSteps={currentSteps}
@@ -96,7 +96,7 @@ const StepPlanner = () => {
                 value={checkpointInterval}
                 onChange={(e) => setCheckpointInterval(Number(e.target.value))}
                 aria-label="Checkpoint interval"
-                className="shrink-0 self-stretch border-l border-gray-100 dark:border-gray-700/60 bg-transparent text-[11px] text-gray-400 dark:text-gray-500 px-2 outline-none cursor-pointer"
+                className="shrink-0 self-stretch border-l border-slate-100 dark:border-slate-700/60 bg-transparent text-[11px] text-slate-400 dark:text-slate-500 px-2 outline-none cursor-pointer"
               >
                 <option value="15">15m</option>
                 <option value="30">30m</option>
