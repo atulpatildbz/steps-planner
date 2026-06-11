@@ -1,61 +1,28 @@
 import PropTypes from "prop-types";
 
+const Row = ({ label, value }) => (
+  <div className="flex justify-between items-baseline px-3 py-2.5 rounded-lg bg-gray-50 dark:bg-gray-700/40">
+    <span className="text-sm text-gray-500 dark:text-gray-400">{label}</span>
+    <span className="text-lg font-bold text-gray-800 dark:text-white">{value}</span>
+  </div>
+);
+Row.propTypes = { label: PropTypes.string.isRequired, value: PropTypes.node.isRequired };
+
 /**
- * Component for displaying additional metrics
+ * Secondary stats — the catch-up math, for reference.
  */
-const Metrics = ({ metrics }) => {
+const Metrics = ({ derived }) => {
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg overflow-hidden">
-      <h3 className="text-lg font-semibold mb-4 text-gray-800 dark:text-white">
-        Additional Metrics
-      </h3>
-      
-      <div className="space-y-4">
-        <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg">
-          <div className="flex justify-between items-center">
-            <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
-              Steps needed per hour
-            </span>
-            <span className="text-2xl font-bold text-gray-800 dark:text-white">
-              {metrics.stepsPerHour.toLocaleString()}
-            </span>
-          </div>
-        </div>
-        
-        <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg">
-          <div className="flex justify-between items-center">
-            <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
-              Rest to Walk ratio
-            </span>
-            <span className="text-2xl font-bold text-gray-800 dark:text-white">
-              {parseFloat(metrics.restWalkRatio) > 0 
-                ? metrics.restWalkRatio 
-                : "0.00"}
-            </span>
-          </div>
-        </div>
-        
-        <div className="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg">
-          <div className="flex justify-between items-center">
-            <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
-              Minutes to walk per hour
-            </span>
-            <span className="text-2xl font-bold text-gray-800 dark:text-white">
-              {metrics.minutesWalkPerHour}
-            </span>
-          </div>
-        </div>
-      </div>
+    <div className="space-y-2">
+      <Row label="Steps left" value={derived.stepsLeft.toLocaleString()} />
+      <Row label="Time left" value={`${derived.hoursLeft.toFixed(1)} h`} />
+      <Row label="Catch-up pace" value={`${derived.catchupPace.toLocaleString()}/hr`} />
+      <Row label="Walking per hour" value={`${Math.round(derived.walkMinPerHour)} min`} />
+      <Row label="Where you should be" value={derived.idealNow.toLocaleString()} />
     </div>
   );
 };
 
-Metrics.propTypes = {
-  metrics: PropTypes.shape({
-    stepsPerHour: PropTypes.number.isRequired,
-    restWalkRatio: PropTypes.string.isRequired,
-    minutesWalkPerHour: PropTypes.string.isRequired,
-  }).isRequired,
-};
+Metrics.propTypes = { derived: PropTypes.object.isRequired };
 
 export default Metrics;

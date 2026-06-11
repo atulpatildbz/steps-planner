@@ -1,364 +1,313 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 
 /**
- * Custom hook for managing step planning logic
- * @returns {Object} Step planning state and functions
+ * Custom hook for managing step planning logic.
+ *
+ * Model (v2): a *fixed* morning plan you can slip against, plus a *live* catch-up.
+ *  - You set a goal + target time + pace, then tap Start. That stamps an anchor
+ *    (now, currentSteps) and freezes the ideal line anchor -> target.
+ *  - Logging only moves "you are here" + the live catch-up; the line never moves.
+ *  - Re-plan re-anchors. Everything resets at midnight (single-day only).
  */
+
+const todayString = () => new Date().toISOString().split("T")[0];
+
+const readNumber = (key, fallback) => {
+  const raw = localStorage.getItem(key);
+  const parsed = raw !== null ? Number(raw) : NaN;
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+const readString = (key, fallback) => {
+  const raw = localStorage.getItem(key);
+  return raw !== null ? raw : fallback;
+};
+const readJSON = (key, fallback) => {
+  const raw = localStorage.getItem(key);
+  if (raw === null) return fallback;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return fallback;
+  }
+};
+
+// Tunables for the status model.
+const BAND_FRACTION = 0.05; // +/-5% of where you should be
+const BAND_FLOOR = 150; // steps; keeps early-morning from flickering
+const MAX_WALK_MIN_PER_HOUR = 50; // above this, the goal is "unreachable"
+
+// Build a timestamp for a "HH:MM" target time on today's date.
+const targetTimestamp = (hhmm) => {
+  const [h, m] = hhmm.split(":").map(Number);
+  const d = new Date();
+  d.setHours(h || 0, m || 0, 0, 0);
+  return d.getTime();
+};
+
 const useStepPlanner = () => {
-  const getFromStorageNumber = (key, fallback) => {
-    const raw = localStorage.getItem(key);
-    const parsed = raw !== null ? Number(raw) : NaN;
-    return Number.isFinite(parsed) ? parsed : fallback;
-  };
+  // ---- Editable settings (persist as defaults for the next day) ----
+  const [targetSteps, setTargetSteps] = useState(() => readNumber("targetSteps", 8000));
+  const [targetTime, setTargetTime] = useState(() => readString("targetTime", "18:00"));
+  const [walkingPace, setWalkingPace] = useState(() => readNumber("walkingPace", 110));
+  const [checkpointInterval, setCheckpointInterval] = useState(() =>
+    readNumber("checkpointInterval", 60)
+  );
 
-  const getFromStorageString = (key, fallback) => {
-    const raw = localStorage.getItem(key);
-    return raw !== null ? raw : fallback;
-  };
-
-  const getFromStorageBool = (key, fallback) => {
-    const raw = localStorage.getItem(key);
-    if (raw === null) return fallback;
-    return raw === "true";
-  };
-
-  const [targetSteps, setTargetSteps] = useState(() => getFromStorageNumber("targetSteps", 8000));
-  const [targetTime, setTargetTime] = useState(() => getFromStorageString("targetTime", "18:00"));
-  const [walkingPace, setWalkingPace] = useState(() => getFromStorageNumber("walkingPace", 110));
-  const [currentSteps, setCurrentSteps] = useState(() => getFromStorageNumber("currentSteps", 0));
-  const [historicalData, setHistoricalData] = useState([]);
-  const [chartData, setChartData] = useState([]);
-  const [checkpointInterval, setCheckpointInterval] = useState(() => getFromStorageNumber("checkpointInterval", 60));
-  const [autoPlan, setAutoPlan] = useState(() => getFromStorageBool("autoPlan", true));
-  const [status, setStatus] = useState({
-    stepsLeft: 0,
-    percentComplete: 0,
-    timeLeftHours: 0,
-    walkingMinutesTotal: 0,
-    restMinutesTotal: 0,
-    minutesToWalkThisHour: 0,
-    targetPassed: false,
-  });
-  const [metrics, setMetrics] = useState({
-    stepsPerHour: 0,
-    restWalkRatio: "0.00",
-    minutesWalkPerHour: 0,
+  // ---- Live, per-day state ----
+  const [currentSteps, setCurrentSteps] = useState(() => readNumber("currentSteps", 0));
+  const [logs, setLogs] = useState(() => readJSON("stepLogs", [])); // [{ time, steps }]
+  // The frozen plan, or null when in setup mode. Snapshotted at Start.
+  const [plan, setPlan] = useState(() => {
+    const saved = readJSON("plan", null);
+    if (saved && saved.date === todayString()) return saved;
+    return null;
   });
 
-  // Persist settings
+  // A ticking clock so live numbers refresh while the app is open.
+  const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    localStorage.setItem("targetSteps", String(targetSteps));
-  }, [targetSteps]);
-
-  useEffect(() => {
-    localStorage.setItem("targetTime", targetTime);
-  }, [targetTime]);
-
-  useEffect(() => {
-    localStorage.setItem("walkingPace", String(walkingPace));
-  }, [walkingPace]);
-
-  useEffect(() => {
-    localStorage.setItem("currentSteps", String(currentSteps));
-  }, [currentSteps]);
-
-  useEffect(() => {
-    localStorage.setItem("checkpointInterval", String(checkpointInterval));
-  }, [checkpointInterval]);
-
-  useEffect(() => {
-    localStorage.setItem("autoPlan", String(autoPlan));
-  }, [autoPlan]);
-
-  // Helper to get today's date in YYYY-MM-DD format
-  const getTodayDateString = () => {
-    const today = new Date();
-    return today.toISOString().split("T")[0];
-  };
-
-  // Filter data to only include today's entries
-  const filterTodayData = (data) => {
-    const todayString = getTodayDateString();
-    return data.filter((item) => item.date === todayString);
-  };
-
-  // Load saved data on component mount and clean up old data
-  useEffect(() => {
-    const savedData = localStorage.getItem("stepData");
-
-    if (savedData) {
-      const parsedData = JSON.parse(savedData);
-
-      // Check if data has date field (for backward compatibility)
-      const hasDateField = parsedData.length > 0 && "date" in parsedData[0];
-
-      // If data has date field, filter to only today's data
-      const todayData = hasDateField ? filterTodayData(parsedData) : parsedData;
-
-      // If we have today's data, use it
-      if (todayData.length > 0) {
-        setHistoricalData(todayData);
-        setCurrentSteps(todayData[todayData.length - 1].steps);
-      } else {
-        // No today's data, reset
-        setHistoricalData([]);
-        setCurrentSteps(0);
-      }
-
-      // Update localStorage to only keep today's data
-      if (hasDateField && todayData.length !== parsedData.length) {
-        localStorage.setItem("stepData", JSON.stringify(todayData));
-      }
-    }
+    const id = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(id);
   }, []);
 
-  // Save current steps to local storage (log a checkpoint)
-  const saveCurrentSteps = () => {
-    const now = new Date();
-    const newDataPoint = {
-      date: getTodayDateString(),
-      time: now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      steps: currentSteps,
-    };
-
-    const updatedData = [...historicalData, newDataPoint];
-
-    // Only keep today's data before saving
-    const todayData = filterTodayData(updatedData);
-
-    setHistoricalData(todayData);
-    localStorage.setItem("stepData", JSON.stringify(todayData));
-
-    if (autoPlan) {
-      // Recalculate after logging
-      calculatePlan();
-    }
-  };
-
-  const resetToday = () => {
-    setHistoricalData([]);
-    setCurrentSteps(0);
-    localStorage.setItem("stepData", JSON.stringify([]));
-    setChartData([]);
-  };
-
-  // Calculate the step plan
-  const calculatePlan = () => {
-    const now = new Date();
-    const target = new Date(now.toDateString() + " " + targetTime);
-
-    // If target time is earlier than now (today), assume it's for tomorrow
-    if (target < now) {
-      // Mark as passed for today and compute status accordingly
-      const stepsLeft = Math.max(0, targetSteps - currentSteps);
-      setMetrics({ stepsPerHour: 0, restWalkRatio: "0.00", minutesWalkPerHour: 0 });
-      setStatus({
-        stepsLeft,
-        percentComplete: Math.min(100, (currentSteps / targetSteps) * 100) || 0,
-        timeLeftHours: 0,
-        walkingMinutesTotal: 0,
-        restMinutesTotal: 0,
-        minutesToWalkThisHour: 0,
-        targetPassed: true,
-      });
-      setChartData([]);
-      return;
-    }
-
-    const timeLeft = (target - now) / 3600000; // hours left
-
-    const stepsLeft = Math.max(0, targetSteps - currentSteps);
-
-    // Guard divide by zero
-    if (timeLeft <= 0 || stepsLeft === 0) {
-      setMetrics({ stepsPerHour: 0, restWalkRatio: "0.00", minutesWalkPerHour: 0 });
-      setStatus({
-        stepsLeft,
-        percentComplete: Math.min(100, (currentSteps / targetSteps) * 100) || 0,
-        timeLeftHours: Math.max(0, timeLeft),
-        walkingMinutesTotal: 0,
-        restMinutesTotal: 0,
-        minutesToWalkThisHour: 0,
-        targetPassed: timeLeft <= 0,
-      });
-      setChartData([]);
-      return;
-    }
-
-    const stepsPerHour = Math.ceil(stepsLeft / timeLeft);
-
-    let newPlan = [];
-    let accumulatedSteps = currentSteps;
-
-    // Add current steps and time as the first point in the plan
-    newPlan.push({
-      time: now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      steps: currentSteps,
-    });
-
-    // Find the next even checkpoint time based on the interval
-    const roundToNextCheckpoint = (date) => {
-      const minutes = date.getMinutes();
-      const remainder = minutes % checkpointInterval;
-
-      if (remainder === 0) {
-        // If we're exactly on a checkpoint, move to the next one
-        return new Date(date.getTime() + checkpointInterval * 60000);
-      }
-
-      // Round up to the next checkpoint time
-      const minutesToAdd = checkpointInterval - remainder;
-      const nextTime = new Date(date.getTime() + minutesToAdd * 60000);
-      // Set seconds to 0 for even checkpoints
-      nextTime.setSeconds(0);
-      return nextTime;
-    };
-
-    // Generate checkpoints at even intervals
-    let checkpointTime = roundToNextCheckpoint(now);
-
-    while (checkpointTime <= target) {
-      // Calculate how much time has passed since now (in hours)
-      const hoursPassed = (checkpointTime - now) / 3600000;
-      // Calculate expected steps based on hourly rate
-      accumulatedSteps = Math.min(
-        targetSteps,
-        currentSteps + Math.ceil(hoursPassed * stepsPerHour)
-      );
-
-      newPlan.push({
-        time: checkpointTime.toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-        steps: accumulatedSteps,
-      });
-
-      // Move to next checkpoint
-      checkpointTime = new Date(
-        checkpointTime.getTime() + checkpointInterval * 60000
-      );
-    }
-
-    // Add target time as the final checkpoint if it's not already included
-    if (
-      newPlan[newPlan.length - 1].time !==
-      target.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-    ) {
-      newPlan.push({
-        time: target.toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-        steps: targetSteps,
-      });
-    }
-
-    const combinedData = [
-      ...historicalData.map((point) => ({
-        ...point,
-        time: new Date(now.toDateString() + " " + point.time),
-      })),
-      ...newPlan.map((point) => ({
-        ...point,
-        time: new Date(now.toDateString() + " " + point.time),
-      })),
-    ];
-
-    // Remove duplicates based on time
-    const uniqueData = Array.from(
-      new Map(combinedData.map((item) => [item.time.getTime(), item])).values()
-    );
-
-    // Sort the combined data by time
-    uniqueData.sort((a, b) => a.time - b.time);
-
-    // Ensure all times are on the same day
-    const adjustTime = (time) => {
-      if (time < uniqueData[0].time) {
-        time.setDate(time.getDate() + 1);
-      }
-      return time;
-    };
-
-    setChartData(
-      uniqueData.map((point) => ({
-        time: new Date(adjustTime(point.time)).getTime(), // Convert to timestamp
-        steps: point.steps,
-      }))
-    );
-
-    // Calculate rest:walk ratio and related stats
-    const totalMinutes = timeLeft * 60;
-    const walkingMinutes = stepsLeft / walkingPace;
-    const restMinutes = Math.max(0, totalMinutes - walkingMinutes);
-    const restWalkRatio = walkingMinutes > 0 ? (restMinutes / walkingMinutes).toFixed(2) : "0.00";
-    const minutesWalkPerHour = (walkingMinutes / timeLeft).toFixed(2);
-
-    setMetrics({
-      stepsPerHour,
-      restWalkRatio,
-      minutesWalkPerHour,
-    });
-
-    setStatus({
-      stepsLeft,
-      percentComplete: Math.min(100, (currentSteps / targetSteps) * 100) || 0,
-      timeLeftHours: timeLeft,
-      walkingMinutesTotal: walkingMinutes,
-      restMinutesTotal: restMinutes,
-      minutesToWalkThisHour: Math.max(0, Math.round(walkingMinutes / timeLeft)),
-      targetPassed: false,
-    });
-  };
-
-  // Debounced auto-calc
+  // ---- Persist settings ----
+  useEffect(() => localStorage.setItem("targetSteps", String(targetSteps)), [targetSteps]);
+  useEffect(() => localStorage.setItem("targetTime", targetTime), [targetTime]);
+  useEffect(() => localStorage.setItem("walkingPace", String(walkingPace)), [walkingPace]);
+  useEffect(
+    () => localStorage.setItem("checkpointInterval", String(checkpointInterval)),
+    [checkpointInterval]
+  );
+  useEffect(() => localStorage.setItem("currentSteps", String(currentSteps)), [currentSteps]);
+  useEffect(() => localStorage.setItem("stepLogs", JSON.stringify(logs)), [logs]);
   useEffect(() => {
-    if (!autoPlan) return;
-    const id = setTimeout(() => {
-      calculatePlan();
-    }, 300);
-    return () => clearTimeout(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [targetSteps, targetTime, walkingPace, currentSteps, checkpointInterval, autoPlan]);
+    if (plan) localStorage.setItem("plan", JSON.stringify(plan));
+    else localStorage.removeItem("plan");
+  }, [plan]);
 
-  // Get the interval name based on the minutes
-  const getIntervalName = (minutes) => {
-    switch (minutes) {
-      case 15:
-        return "15 minutes";
-      case 30:
-        return "30 minutes";
-      case 60:
-        return "1 hour";
-      case 120:
-        return "2 hours";
-      default:
-        return `${minutes} minutes`;
+  // ---- New-day cleanup: if the saved plan/logs are from a past day, reset. ----
+  useEffect(() => {
+    const t = todayString();
+    if (plan && plan.date !== t) {
+      setPlan(null);
+      setLogs([]);
+      setCurrentSteps(0);
+    } else if (!plan) {
+      // Drop any stale logs left over from a previous day.
+      const stale = logs.some((l) => l.date && l.date !== t);
+      if (stale) {
+        setLogs([]);
+        setCurrentSteps(0);
+      }
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ---- Actions ----
+
+  // Lock in the plan: freeze the ideal line from (now, currentSteps) -> (target).
+  const startPlan = useCallback(() => {
+    const t = todayString();
+    const anchorTime = Date.now();
+    const newPlan = {
+      date: t,
+      anchorTime,
+      anchorSteps: currentSteps,
+      targetSteps,
+      targetTime,
+      walkingPace,
+    };
+    setPlan(newPlan);
+    const firstLog = { date: t, time: anchorTime, steps: currentSteps };
+    setLogs([firstLog]);
+  }, [currentSteps, targetSteps, targetTime, walkingPace]);
+
+  // Throw away today's plan and go back to setup.
+  const rePlan = useCallback(() => {
+    setPlan(null);
+    setLogs([]);
+  }, []);
+
+  // Log the current step count (updates "you are here", not the frozen line).
+  const logSteps = useCallback(
+    (steps) => {
+      const value = Math.max(0, Number(steps) || 0);
+      setCurrentSteps(value);
+      setLogs((prev) => [...prev, { date: todayString(), time: Date.now(), steps: value }]);
+    },
+    [setCurrentSteps]
+  );
+
+  const resetToday = useCallback(() => {
+    setPlan(null);
+    setLogs([]);
+    setCurrentSteps(0);
+  }, []);
+
+  // ---- Derived live computation (active mode) ----
+  const derived = useMemo(() => {
+    if (!plan) return null;
+
+    const { anchorTime, anchorSteps, targetSteps: goal, targetTime: tt, walkingPace: pace } = plan;
+    const targetTimeMs = targetTimestamp(tt);
+
+    const span = targetTimeMs - anchorTime;
+    const idealAt = (t) => {
+      if (span <= 0) return goal;
+      const frac = Math.min(1, Math.max(0, (t - anchorTime) / span));
+      return Math.round(anchorSteps + (goal - anchorSteps) * frac);
+    };
+
+    const idealNow = idealAt(now);
+    const diff = currentSteps - idealNow; // + ahead, - behind
+    const stepsLeft = Math.max(0, goal - currentSteps);
+    const msLeft = targetTimeMs - now;
+    const hoursLeft = msLeft / 3600000;
+    const minsLeft = msLeft / 60000;
+
+    const reached = currentSteps >= goal;
+    const timeUp = now >= targetTimeMs;
+
+    // Catch-up pace: spread the remaining steps evenly over the remaining time.
+    const catchupPace = hoursLeft > 0 ? stepsLeft / hoursLeft : Infinity; // steps/hr
+    const walkMinPerHour = pace > 0 ? catchupPace / pace : Infinity;
+
+    // Rolling next-60-min instruction.
+    const windowMin = Math.min(60, Math.max(0, minsLeft));
+    const stepsNextWindow = Math.round(catchupPace * (windowMin / 60));
+    const minutesNextWindow = pace > 0 ? Math.round(stepsNextWindow / pace) : 0;
+
+    // Status pill state.
+    const band = Math.max(BAND_FLOOR, BAND_FRACTION * idealNow);
+    let state;
+    if (reached) state = "done";
+    else if (timeUp) state = "timeup";
+    else if (walkMinPerHour > MAX_WALK_MIN_PER_HOUR) state = "unreachable";
+    else if (diff > band) state = "ahead";
+    else if (diff < -band) state = "behind";
+    else state = "ontrack";
+
+    // Suggestions when unreachable: how much later / how much lower would work.
+    let suggestion = null;
+    if (state === "unreachable") {
+      const sustainablePerHour = MAX_WALK_MIN_PER_HOUR * pace; // steps/hr you could sustain
+      const hoursNeeded = stepsLeft / sustainablePerHour;
+      const suggestedTargetMs = now + hoursNeeded * 3600000;
+      const sd = new Date(suggestedTargetMs);
+      const suggestedTime = `${String(sd.getHours()).padStart(2, "0")}:${String(
+        sd.getMinutes()
+      ).padStart(2, "0")}`;
+      const suggestedGoal =
+        currentSteps + Math.floor((sustainablePerHour * Math.max(0, hoursLeft)) / 100) * 100;
+      suggestion = { suggestedTime, suggestedGoal };
+    }
+
+    // Next clock-aligned checkpoint after now (catch-up target to still finish).
+    const intervalMs = checkpointInterval * 60000;
+    let nextCp = null;
+    if (!timeUp && !reached) {
+      const minutes = new Date(now).getMinutes();
+      const remainder = minutes % checkpointInterval;
+      const addMin = remainder === 0 ? checkpointInterval : checkpointInterval - remainder;
+      let cpTime = new Date(now);
+      cpTime.setMinutes(minutes + addMin, 0, 0);
+      let cpMs = cpTime.getTime();
+      if (cpMs > targetTimeMs) cpMs = targetTimeMs;
+      const cpTarget = Math.min(
+        goal,
+        Math.round(currentSteps + catchupPace * ((cpMs - now) / 3600000))
+      );
+      nextCp = {
+        time: cpMs,
+        target: cpTarget,
+        idealTarget: idealAt(cpMs),
+      };
+    }
+
+    // Reference checkpoint list along the FROZEN plan line.
+    const checkpoints = [];
+    {
+      let t = anchorTime;
+      // First checkpoint after the anchor, clock-aligned.
+      const start = new Date(anchorTime);
+      const rem = start.getMinutes() % checkpointInterval;
+      const add = rem === 0 ? checkpointInterval : checkpointInterval - rem;
+      start.setMinutes(start.getMinutes() + add, 0, 0);
+      t = start.getTime();
+      while (t < targetTimeMs) {
+        checkpoints.push({ time: t, steps: idealAt(t), past: t < now });
+        t += intervalMs;
+      }
+      checkpoints.push({ time: targetTimeMs, steps: goal, past: targetTimeMs < now });
+    }
+
+    // Chart series: union of x points with ideal / catchup / actual fields.
+    const xs = new Set([anchorTime, targetTimeMs, now]);
+    logs.forEach((l) => xs.add(l.time));
+    checkpoints.forEach((c) => xs.add(c.time));
+    const logByTime = new Map(logs.map((l) => [l.time, l.steps]));
+    const chartData = Array.from(xs)
+      .sort((a, b) => a - b)
+      .map((t) => {
+        const point = { time: t, ideal: idealAt(t) };
+        if (logByTime.has(t)) point.actual = logByTime.get(t);
+        if (t === now) point.actual = currentSteps;
+        if (t >= now && !reached && !timeUp) {
+          point.catchup = Math.min(goal, Math.round(currentSteps + catchupPace * ((t - now) / 3600000)));
+        }
+        return point;
+      });
+
+    const percent = Math.min(100, goal > 0 ? (currentSteps / goal) * 100 : 0);
+
+    return {
+      targetTimeMs,
+      idealNow,
+      diff,
+      stepsLeft,
+      hoursLeft: Math.max(0, hoursLeft),
+      reached,
+      timeUp,
+      catchupPace: Number.isFinite(catchupPace) ? Math.round(catchupPace) : 0,
+      walkMinPerHour: Number.isFinite(walkMinPerHour) ? walkMinPerHour : 0,
+      stepsNextWindow,
+      minutesNextWindow,
+      windowMin: Math.round(windowMin),
+      state,
+      suggestion,
+      nextCp,
+      checkpoints,
+      chartData,
+      percent,
+      goal,
+    };
+  }, [plan, now, currentSteps, logs, checkpointInterval]);
 
   return {
+    // mode
+    isActive: !!plan,
+    plan,
+    now,
+    // settings
     targetSteps,
     setTargetSteps,
     targetTime,
     setTargetTime,
     walkingPace,
     setWalkingPace,
-    currentSteps,
-    setCurrentSteps,
-    historicalData,
-    chartData,
     checkpointInterval,
     setCheckpointInterval,
-    metrics,
-    status,
-    autoPlan,
-    setAutoPlan,
-    saveCurrentSteps,
+    // live
+    currentSteps,
+    setCurrentSteps,
+    logs,
+    // actions
+    startPlan,
+    rePlan,
+    logSteps,
     resetToday,
-    calculatePlan,
-    getIntervalName,
+    // derived
+    derived,
   };
 };
 

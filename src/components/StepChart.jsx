@@ -12,113 +12,105 @@ import {
 import { timeFormat } from "d3-time-format";
 import PropTypes from "prop-types";
 
-// Custom tooltip component with proper prop types
+const fmtTime = timeFormat("%I:%M %p");
+
 const CustomTooltip = ({ active, payload, label }) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
-        <p className="text-gray-500 dark:text-gray-400 text-sm">
-          {timeFormat("%I:%M %p")(new Date(label))}
+  if (!active || !payload || !payload.length) return null;
+  return (
+    <div className="bg-white dark:bg-gray-800 p-3 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg text-sm">
+      <p className="text-gray-500 dark:text-gray-400 mb-1">{fmtTime(new Date(label))}</p>
+      {payload.map((p) => (
+        <p key={p.dataKey} className="font-semibold" style={{ color: p.color }}>
+          {p.name}: {Math.round(p.value).toLocaleString()}
         </p>
-        <p className="font-bold text-blue-600 dark:text-blue-400 text-lg">
-          {payload[0].value.toLocaleString()} steps
-        </p>
-      </div>
-    );
-  }
-  return null;
+      ))}
+    </div>
+  );
 };
 
-// PropTypes for CustomTooltip
 CustomTooltip.propTypes = {
   active: PropTypes.bool,
-  payload: PropTypes.arrayOf(
-    PropTypes.shape({
-      value: PropTypes.number,
-    })
-  ),
+  payload: PropTypes.array,
   label: PropTypes.number,
 };
 
 /**
- * Chart component for displaying step progression
+ * Chart: frozen ideal line (plan) + live catch-up line + your actual logged dots.
  */
-const StepChart = ({ chartData, targetSteps }) => {
-  // Get current time for reference line
-  const now = new Date().getTime();
-  
+const StepChart = ({ chartData, targetSteps, now }) => {
   return (
     <div className="bg-white dark:bg-gray-800 p-1 rounded-lg">
-      <ResponsiveContainer width="100%" height={300}>
-        <LineChart data={chartData} margin={{ top: 10, right: 10, left: 10, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#eaeaea" strokeOpacity={0.5} />
+      <ResponsiveContainer width="100%" height={280}>
+        <LineChart data={chartData} margin={{ top: 10, right: 16, left: 4, bottom: 5 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#9ca3af" strokeOpacity={0.2} />
           <XAxis
             dataKey="time"
             type="number"
             scale="time"
-            domain={["auto", "auto"]}
-            tickFormatter={(timeStr) => timeFormat("%H:%M")(new Date(timeStr))}
+            domain={["dataMin", "dataMax"]}
+            tickFormatter={(t) => timeFormat("%H:%M")(new Date(t))}
             stroke="#888"
             fontSize={12}
             tickMargin={8}
-            className="dark:text-gray-300"
           />
           <YAxis
             domain={[0, "dataMax"]}
-            tickFormatter={(value) => value.toLocaleString()}
+            tickFormatter={(v) => v.toLocaleString()}
             stroke="#888"
             fontSize={12}
-            tickMargin={8}
-            className="dark:text-gray-300"
+            width={48}
+            tickMargin={4}
           />
           <Tooltip content={<CustomTooltip />} />
           <Legend
-            wrapperStyle={{ paddingTop: 10 }}
-            formatter={(value) => <span className="text-gray-700 dark:text-gray-300 font-medium">{value}</span>}
-          />
-          
-          {/* Current time reference line */}
-          <ReferenceLine 
-            x={now} 
-            stroke="#FF5722" 
-            strokeWidth={2} 
-            strokeDasharray="3 3" 
-            label={{ 
-              value: "Now", 
-              position: "insideTopRight", 
-              fill: "#FF5722",
-              fontSize: 12
-            }} 
+            wrapperStyle={{ paddingTop: 8 }}
+            formatter={(value) => (
+              <span className="text-gray-700 dark:text-gray-300 text-sm font-medium">{value}</span>
+            )}
           />
 
-          {/* Target steps reference line */}
-          <ReferenceLine 
-            y={targetSteps} 
-            stroke="#10B981" 
-            strokeWidth={2} 
-            strokeDasharray="4 4" 
-            label={{ 
-              value: `Target (${targetSteps.toLocaleString()})`, 
-              position: "right",
-              fill: "#10B981",
-              fontSize: 12
-            }} 
+          <ReferenceLine
+            x={now}
+            stroke="#f97316"
+            strokeWidth={2}
+            strokeDasharray="3 3"
+            label={{ value: "Now", position: "insideTopRight", fill: "#f97316", fontSize: 11 }}
           />
-          
-          <Line 
-            type="monotone" 
-            dataKey="steps" 
-            name="Step Count"
-            stroke="#3b82f6" 
-            strokeWidth={3} 
-            dot={{ fill: "#3b82f6", r: 4 }}
-            activeDot={{ 
-              fill: "#3b82f6", 
-              stroke: "#fff", 
-              r: 6, 
-              strokeWidth: 2 
-            }}
-            animationDuration={1000}
+          <ReferenceLine y={targetSteps} stroke="#10b981" strokeDasharray="4 4" strokeOpacity={0.6} />
+
+          {/* Frozen morning plan */}
+          <Line
+            type="monotone"
+            dataKey="ideal"
+            name="Plan"
+            stroke="#9ca3af"
+            strokeWidth={2}
+            strokeDasharray="5 4"
+            dot={false}
+            isAnimationActive={false}
+          />
+          {/* Live catch-up to still finish */}
+          <Line
+            type="monotone"
+            dataKey="catchup"
+            name="Catch-up"
+            stroke="#3b82f6"
+            strokeWidth={2}
+            dot={false}
+            connectNulls
+            isAnimationActive={false}
+          />
+          {/* Your actual logged counts */}
+          <Line
+            type="monotone"
+            dataKey="actual"
+            name="You"
+            stroke="#22c55e"
+            strokeWidth={3}
+            dot={{ fill: "#22c55e", r: 4 }}
+            activeDot={{ fill: "#22c55e", stroke: "#fff", r: 6, strokeWidth: 2 }}
+            connectNulls
+            isAnimationActive={false}
           />
         </LineChart>
       </ResponsiveContainer>
@@ -130,10 +122,13 @@ StepChart.propTypes = {
   chartData: PropTypes.arrayOf(
     PropTypes.shape({
       time: PropTypes.number.isRequired,
-      steps: PropTypes.number.isRequired,
+      ideal: PropTypes.number,
+      catchup: PropTypes.number,
+      actual: PropTypes.number,
     })
   ).isRequired,
   targetSteps: PropTypes.number,
+  now: PropTypes.number,
 };
 
 export default StepChart;
