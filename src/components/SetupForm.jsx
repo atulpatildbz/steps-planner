@@ -1,8 +1,8 @@
 import PropTypes from "prop-types";
 
 const field =
-  "block w-full px-4 py-3 rounded-xl border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-900 outline-none transition dark:bg-gray-700 dark:border-gray-600 dark:text-white";
-const labelCls = "block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1";
+  "block w-full px-3 py-2.5 rounded-lg border border-gray-200 bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-200 dark:focus:ring-blue-900/50 outline-none transition tabular-nums dark:bg-gray-900 dark:border-gray-700 dark:text-white";
+const labelCls = "block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1";
 
 const presets = [
   { label: "8k by 6 PM", steps: 8000, time: "18:00" },
@@ -25,13 +25,11 @@ const SetupForm = ({
   startPlan,
 }) => {
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-md p-6 sm:p-8 max-w-xl mx-auto">
-      <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-1">Plan today&apos;s goal</h2>
-      <p className="text-sm text-gray-500 dark:text-gray-400 mb-5">
-        Set your target, then tap Start to lock in the plan.
-      </p>
+    <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm p-5 sm:p-6">
+      <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-0.5">Plan today&apos;s goal</h2>
+      <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Set your target, then tap Start to lock in the plan.</p>
 
-      <div className="flex flex-wrap gap-2 mb-6">
+      <div className="flex flex-wrap gap-2 mb-5">
         {presets.map((p) => (
           <button
             key={p.label}
@@ -50,7 +48,7 @@ const SetupForm = ({
         ))}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4">
         <div>
           <label className={labelCls}>Target steps</label>
           <input
@@ -97,7 +95,7 @@ const SetupForm = ({
 
       <button
         onClick={startPlan}
-        className="mt-6 w-full py-4 bg-blue-600 text-white text-lg font-semibold rounded-xl hover:bg-blue-700 active:scale-[0.99] transition shadow-md"
+        className="mt-5 w-full py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 active:scale-[0.99] transition"
       >
         Start plan
       </button>

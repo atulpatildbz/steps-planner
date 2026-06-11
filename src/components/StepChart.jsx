@@ -37,77 +37,58 @@ CustomTooltip.propTypes = {
 /**
  * Chart: frozen ideal line (plan) + live catch-up line + your actual logged dots.
  */
-const StepChart = ({ chartData, targetSteps, now }) => {
+const StepChart = ({ chartData, targetSteps, now, compact = false }) => {
   return (
-    <div className="bg-white dark:bg-gray-800 p-1 rounded-lg">
-      <ResponsiveContainer width="100%" height={280}>
-        <LineChart data={chartData} margin={{ top: 10, right: 16, left: 4, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#9ca3af" strokeOpacity={0.2} />
+    <div className="rounded-lg">
+      <ResponsiveContainer width="100%" height={compact ? 132 : 280}>
+        <LineChart data={chartData} margin={{ top: 8, right: 10, left: compact ? 2 : 4, bottom: 0 }}>
+          {!compact && <CartesianGrid strokeDasharray="3 3" stroke="#9ca3af" strokeOpacity={0.2} />}
           <XAxis
             dataKey="time"
             type="number"
             scale="time"
             domain={["dataMin", "dataMax"]}
-            tickFormatter={(t) => timeFormat("%H:%M")(new Date(t))}
-            stroke="#888"
-            fontSize={12}
-            tickMargin={8}
+            tickFormatter={(t) => timeFormat("%-I%p")(new Date(t)).toLowerCase()}
+            stroke="#9ca3af"
+            fontSize={10}
+            tickMargin={6}
+            tickLine={false}
+            axisLine={false}
+            minTickGap={28}
           />
           <YAxis
             domain={[0, "dataMax"]}
-            tickFormatter={(v) => v.toLocaleString()}
-            stroke="#888"
-            fontSize={12}
-            width={48}
-            tickMargin={4}
+            tickFormatter={(v) => (v >= 1000 ? `${v / 1000}k` : v)}
+            stroke="#9ca3af"
+            fontSize={10}
+            width={compact ? 0 : 40}
+            tick={!compact}
+            tickLine={false}
+            axisLine={false}
           />
           <Tooltip content={<CustomTooltip />} />
-          <Legend
-            wrapperStyle={{ paddingTop: 8 }}
-            formatter={(value) => (
-              <span className="text-gray-700 dark:text-gray-300 text-sm font-medium">{value}</span>
-            )}
-          />
+          {!compact && (
+            <Legend
+              wrapperStyle={{ paddingTop: 8 }}
+              formatter={(value) => <span className="text-gray-700 dark:text-gray-300 text-sm font-medium">{value}</span>}
+            />
+          )}
 
-          <ReferenceLine
-            x={now}
-            stroke="#f97316"
-            strokeWidth={2}
-            strokeDasharray="3 3"
-            label={{ value: "Now", position: "insideTopRight", fill: "#f97316", fontSize: 11 }}
-          />
-          <ReferenceLine y={targetSteps} stroke="#10b981" strokeDasharray="4 4" strokeOpacity={0.6} />
+          <ReferenceLine x={now} stroke="#f97316" strokeWidth={1.5} strokeDasharray="3 3" />
+          <ReferenceLine y={targetSteps} stroke="#10b981" strokeDasharray="4 4" strokeOpacity={0.5} />
 
           {/* Frozen morning plan */}
-          <Line
-            type="monotone"
-            dataKey="ideal"
-            name="Plan"
-            stroke="#9ca3af"
-            strokeWidth={2}
-            strokeDasharray="5 4"
-            dot={false}
-            isAnimationActive={false}
-          />
+          <Line type="monotone" dataKey="ideal" name="Plan" stroke="#9ca3af" strokeWidth={1.5} strokeDasharray="5 4" dot={false} isAnimationActive={false} />
           {/* Live catch-up to still finish */}
-          <Line
-            type="monotone"
-            dataKey="catchup"
-            name="Catch-up"
-            stroke="#3b82f6"
-            strokeWidth={2}
-            dot={false}
-            connectNulls
-            isAnimationActive={false}
-          />
+          <Line type="monotone" dataKey="catchup" name="Catch-up" stroke="#3b82f6" strokeWidth={2} dot={false} connectNulls isAnimationActive={false} />
           {/* Your actual logged counts */}
           <Line
             type="monotone"
             dataKey="actual"
             name="You"
             stroke="#22c55e"
-            strokeWidth={3}
-            dot={{ fill: "#22c55e", r: 4 }}
+            strokeWidth={2.5}
+            dot={{ fill: "#22c55e", r: compact ? 2.5 : 4 }}
             activeDot={{ fill: "#22c55e", stroke: "#fff", r: 6, strokeWidth: 2 }}
             connectNulls
             isAnimationActive={false}
@@ -129,6 +110,7 @@ StepChart.propTypes = {
   ).isRequired,
   targetSteps: PropTypes.number,
   now: PropTypes.number,
+  compact: PropTypes.bool,
 };
 
 export default StepChart;
