@@ -90,7 +90,12 @@ const StepPlanner = () => {
             {/* Checkpoint timeline + interval control */}
             <div className="flex items-stretch">
               <div className="flex-1 min-w-0">
-                <CheckpointStrip checkpoints={derived.checkpoints} now={now} />
+                <CheckpointStrip
+                  checkpoints={derived.checkpoints}
+                  now={now}
+                  currentSteps={currentSteps}
+                  walkingPace={plan.walkingPace}
+                />
               </div>
               <select
                 value={checkpointInterval}
