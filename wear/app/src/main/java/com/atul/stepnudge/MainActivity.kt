@@ -59,6 +59,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent { MaterialTheme { App() } }
+        Nudger.createChannel(this)
         if (intent?.action == ACTION_CATCH_UP) startCatchUp()
     }
 

@@ -2,6 +2,7 @@ package com.atul.stepnudge
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.os.SystemClock
 import java.time.LocalDate
 import java.time.LocalTime
 
@@ -47,6 +48,46 @@ object Store {
             .putString("log", appendLog(log(c), LocalTime.now().toSecondOfDay() / 60, best))
             .apply()
     }
+
+    /** A batch from Health Services: the same count the watch face shows, as of [endMs] (ms since boot). */
+    fun saveBatch(c: Context, steps: Long, endMs: Long) {
+        prefs(c).edit()
+            .putLong("batchSteps", steps)
+            .putLong("batchEnd", endMs)
+            .putLong("batchBoot", bootedAt())
+            .putString("batchDate", today())
+            .apply()
+        saveSteps(c, steps)
+    }
+
+    /**
+     * Health Services hands steps over in batches, so its count can lag the watch face by minutes.
+     * The raw step counter (steps since boot) is always live, so we pair it with a batch that already
+     * includes its latest step ([counterAt], ms since boot), and between batches add the counter's
+     * steps since that pairing.
+     */
+    fun syncCounter(c: Context, counter: Long, counterAt: Long) {
+        val p = prefs(c)
+        // Boot time wobbles by a few ms between readings, hence the tolerance.
+        val sameBoot = kotlin.math.abs(p.getLong("batchBoot", 0) - bootedAt()) < 5_000
+        val batchHasLatestStep = p.getString("batchDate", null) == today() && sameBoot &&
+            p.getLong("batchEnd", 0) >= counterAt - 1_000
+        if (batchHasLatestStep) {
+            p.edit()
+                .putLong("pairedSteps", p.getLong("batchSteps", 0))
+                .putLong("pairedCounter", counter)
+                .putString("pairedDate", today())
+                .apply()
+            return
+        }
+        val pairedCounter = p.getLong("pairedCounter", -1)
+        // A smaller counter means the watch rebooted since the pairing.
+        if (p.getString("pairedDate", null) == today() && pairedCounter in 0..counter) {
+            saveSteps(c, p.getLong("pairedSteps", 0) + counter - pairedCounter)
+        }
+    }
+
+    private fun bootedAt() = System.currentTimeMillis() - SystemClock.elapsedRealtime()
 
     /**
      * Today's step count over time, as "minute:steps;…", so a plan can start in the past.
