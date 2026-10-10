@@ -1,0 +1,55 @@
+package com.atul.stepnudge
+
+import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.roundToLong
+
+/** A nudge fires each time the catch-up walk grows by this many minutes. */
+const val NUDGE_STEP_MIN = 5
+
+enum class Mood { AHEAD, ON_TRACK, BEHIND, UNREACHABLE, DONE }
+
+data class Status(
+    val behind: Long, // negative = ahead
+    val catchUpMin: Int,
+    val level: Int, // catchUpMin / NUDGE_STEP_MIN
+    val mood: Mood,
+)
+
+fun Plan.idealAt(t: Long): Long {
+    val f = ((t - anchorTime).toDouble() / (endTime - anchorTime)).coerceIn(0.0, 1.0)
+    return (anchorSteps + (target - anchorSteps) * f).roundToLong()
+}
+
+/** The plan's average rate, for information: steps per hour and walking minutes per hour. */
+fun Plan.perHour(): Pair<Long, Int> {
+    val hours = (endTime - anchorTime) / 3_600_000.0
+    val steps = ((target - anchorSteps) / hours).roundToLong().coerceAtLeast(0)
+    return steps to (steps / pace).toInt()
+}
+
+fun Plan.status(steps: Long, now: Long): Status {
+    val ideal = idealAt(now)
+    val behind = ideal - steps
+    val catchUpMin = if (behind > 0) (behind / pace).toInt() else 0
+    val minutesLeft = (endTime - now) / 60_000.0
+    val walkNeededMin = (target - steps).toDouble() / pace
+    val band = max(150L, (ideal * 0.05).roundToLong())
+    val mood = when {
+        steps >= target -> Mood.DONE
+        // Same rule as the web app: more than 50 min of walking per remaining hour.
+        walkNeededMin > minutesLeft * 50 / 60 -> Mood.UNREACHABLE
+        abs(behind) <= band -> Mood.ON_TRACK
+        behind > 0 -> Mood.BEHIND
+        else -> Mood.AHEAD
+    }
+    return Status(behind, catchUpMin, catchUpMin / NUDGE_STEP_MIN, mood)
+}
+
+/** When the deficit will reach [level] if no more steps are walked; null if not before the end time. */
+fun Plan.timeOfLevel(steps: Long, level: Int): Long? {
+    val idealNeeded = steps + level.toLong() * NUDGE_STEP_MIN * pace
+    if (idealNeeded > target) return null
+    val f = (idealNeeded - anchorSteps).toDouble() / (target - anchorSteps)
+    return anchorTime + (f * (endTime - anchorTime)).roundToLong()
+}
