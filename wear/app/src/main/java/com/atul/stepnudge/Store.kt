@@ -1,6 +1,7 @@
 package com.atul.stepnudge
 
 import android.content.Context
+import android.content.SharedPreferences
 import java.time.LocalDate
 import java.time.LocalTime
 
@@ -27,6 +28,13 @@ data class NudgeState(
 /** Everything lives in SharedPreferences, keyed to today's date so it all resets at midnight. */
 object Store {
     private fun prefs(c: Context) = c.getSharedPreferences("nudge", Context.MODE_PRIVATE)
+
+    /** Calls [block] whenever anything is saved (e.g. a new step batch); returns the unsubscribe. */
+    fun onChange(c: Context, block: () -> Unit): () -> Unit {
+        val l = SharedPreferences.OnSharedPreferenceChangeListener { _, _ -> block() }
+        prefs(c).registerOnSharedPreferenceChangeListener(l)
+        return { prefs(c).unregisterOnSharedPreferenceChangeListener(l) }
+    }
     private fun today() = LocalDate.now().toString()
 
     /** Daily steps only go up, so a late or partial batch never makes us look behind. */

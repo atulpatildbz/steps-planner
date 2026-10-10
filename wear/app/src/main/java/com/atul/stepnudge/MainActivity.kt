@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -94,12 +95,18 @@ private fun App() {
         )
     }
 
+    // Redraw the moment a step batch (or anything else) is saved, not on a timer.
+    DisposableEffect(Unit) {
+        val unsubscribe = Store.onChange(c, refresh)
+        onDispose { unsubscribe() }
+    }
+
     // Only while on screen: pull batched steps on open and once a minute after.
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(lifecycle) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
             while (true) {
-                Health.flushThen(c, 2_000) { Nudger.evaluate(c); refresh() }
+                Health.flushThen(c, 2_000) { Nudger.evaluate(c) }
                 delay(60_000)
             }
         }
