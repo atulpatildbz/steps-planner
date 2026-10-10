@@ -19,7 +19,6 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlin.math.ceil
 
 /** A live catch-up walk: counts steps on the raw sensor until you're back on the plan line. */
 object CatchUp {
@@ -28,17 +27,9 @@ object CatchUp {
     /** Non-null while a catch-up is running; the UI watches this. */
     val state = MutableStateFlow<Progress?>(null)
 
-    /**
-     * Steps needed to be back on the line by the time you finish walking.
-     * The line keeps rising while you walk, so the deficit is scaled up by 1 / (1 - planRate / pace).
-     */
     fun stepsNeeded(c: Context): Int {
         val plan = Store.plan(c) ?: return 0
-        val behind = plan.status(Store.todaySteps(c), System.currentTimeMillis()).behind
-        if (behind <= 0) return 0
-        val planRate = (plan.target - plan.anchorSteps).toDouble() / ((plan.endTime - plan.anchorTime) / 60_000.0)
-        val factor = (1 - planRate / plan.pace).coerceAtLeast(0.2)
-        return ceil(behind / factor).toInt()
+        return plan.status(Store.todaySteps(c), System.currentTimeMillis()).catchUpSteps.toInt()
     }
 
     fun start(c: Context) {

@@ -58,20 +58,29 @@ object Store {
             .putString("batchDate", today())
             .apply()
         saveSteps(c, steps)
+        // The sensor may have been read just before this batch landed; see if they now line up.
+        val p = prefs(c)
+        if (p.getLong("counterBoot", 0).sameBoot()) {
+            syncCounter(c, p.getLong("counter", 0), p.getLong("counterAt", 0), p.getLong("counterReadAt", 0))
+        }
     }
 
     /**
      * Health Services hands steps over in batches, so its count can lag the watch face by minutes.
-     * The raw step counter (steps since boot) is always live, so we pair it with a batch that already
-     * includes its latest step ([counterAt], ms since boot), and between batches add the counter's
-     * steps since that pairing.
+     * The raw step counter (steps since boot) is always live. Its last step was at [counterAt] and none
+     * came before we read it at [readAt] (both ms since boot), so a batch ending in that window counts
+     * exactly the same steps: we pair the two, and between batches add the counter's steps since then.
      */
-    fun syncCounter(c: Context, counter: Long, counterAt: Long) {
+    fun syncCounter(c: Context, counter: Long, counterAt: Long, readAt: Long = SystemClock.elapsedRealtime()) {
         val p = prefs(c)
-        // Boot time wobbles by a few ms between readings, hence the tolerance.
-        val sameBoot = kotlin.math.abs(p.getLong("batchBoot", 0) - bootedAt()) < 5_000
-        val batchHasLatestStep = p.getString("batchDate", null) == today() && sameBoot &&
-            p.getLong("batchEnd", 0) >= counterAt - 1_000
+        p.edit()
+            .putLong("counter", counter)
+            .putLong("counterAt", counterAt)
+            .putLong("counterReadAt", readAt)
+            .putLong("counterBoot", bootedAt())
+            .apply()
+        val batchHasLatestStep = p.getString("batchDate", null) == today() && p.getLong("batchBoot", 0).sameBoot() &&
+            p.getLong("batchEnd", 0) in (counterAt - 1_000)..(readAt + 1_000)
         if (batchHasLatestStep) {
             p.edit()
                 .putLong("pairedSteps", p.getLong("batchSteps", 0))
@@ -88,6 +97,9 @@ object Store {
     }
 
     private fun bootedAt() = System.currentTimeMillis() - SystemClock.elapsedRealtime()
+
+    // Boot time wobbles by a few ms between readings, hence the tolerance.
+    private fun Long.sameBoot() = kotlin.math.abs(this - bootedAt()) < 5_000
 
     /**
      * Today's step count over time, as "minute:steps;…", so a plan can start in the past.

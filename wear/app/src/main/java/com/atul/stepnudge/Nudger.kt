@@ -44,7 +44,7 @@ object Nudger {
 
         if (s.level > st.lastLevel && !st.muted) {
             val min = s.level * NUDGE_STEP_MIN
-            notify(c, "Walk $min min", "Behind ${fmt(s.behind)} steps · ${fmt(steps)} / ${fmt(plan.target)}", catchUp = true)
+            notify(c, "Walk $min min", "${fmt(s.catchUpSteps)} steps to catch up · ${fmt(steps)} / ${fmt(plan.target)}", catchUp = true)
         }
         st = st.copy(lastLevel = s.level)
 

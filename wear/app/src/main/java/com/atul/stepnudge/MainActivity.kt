@@ -102,13 +102,18 @@ private fun App() {
         onDispose { unsubscribe() }
     }
 
-    // Only while on screen: pull batched steps on open and once a minute after.
+    // Only while on screen: count steps live like the watch face, and re-check the plan once a minute.
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(lifecycle) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            while (true) {
-                Health.flushThen(c, 2_000) { Nudger.evaluate(c) }
-                delay(60_000)
+            val stopCounter = Health.watchCounter(c)
+            try {
+                while (true) {
+                    Health.flushThen(c, 2_000) { Nudger.evaluate(c) }
+                    delay(60_000)
+                }
+            } finally {
+                stopCounter()
             }
         }
     }
@@ -216,14 +221,15 @@ private fun ScalingLazyListScope.active(c: Context, plan: Plan, refresh: () -> U
         Mood.DONE -> "Goal reached" to Color(0xFF34D399)
         Mood.AHEAD -> "Ahead ${fmt(-s.behind)}" to Color(0xFF34D399)
         Mood.ON_TRACK -> "On track" to Color(0xFF818CF8)
-        Mood.BEHIND -> "Behind ${fmt(s.behind)}" to Color(0xFFFBBF24)
+        Mood.BEHIND -> "Behind" to Color(0xFFFBBF24)
         Mood.UNREACHABLE -> "Out of reach" to Color(0xFFF87171)
     }
     val ageMin = ((now - Store.stepsAt(c)) / 60_000).coerceAtLeast(0)
 
     item { Text(headline, color = color, fontSize = 22.sp, fontWeight = FontWeight.Bold) }
-    if (s.catchUpMin > 0 && s.mood != Mood.DONE) {
-        item { Text("Walk ~${s.catchUpMin} min to catch up", textAlign = TextAlign.Center) }
+    if (s.catchUpSteps > 0 && s.mood != Mood.DONE) {
+        // Rounded up, like the catch-up screen, so both show the same minutes.
+        item { Text("Walk ~${(s.catchUpSteps + plan.pace - 1) / plan.pace} min to catch up", textAlign = TextAlign.Center) }
     }
     item {
         Text("${fmt(steps)} / ${fmt(plan.target)} by ${hhmm(plan.endTime)}",
@@ -231,10 +237,10 @@ private fun ScalingLazyListScope.active(c: Context, plan: Plan, refresh: () -> U
     }
     item { PerHour(plan) }
     item { Text("updated ${ageMin} min ago", style = MaterialTheme.typography.caption3) }
-    if (s.behind > 0 && s.mood != Mood.DONE) {
+    if (s.catchUpSteps > 0 && s.mood != Mood.DONE) {
         item {
             Chip(
-                label = { Text("Catch up") },
+                label = { Text("Catch up · ${fmt(s.catchUpSteps)}") },
                 onClick = { (c as MainActivity).startCatchUp() },
                 colors = ChipDefaults.primaryChipColors(),
                 modifier = Modifier.fillMaxWidth(0.85f),

@@ -40,26 +40,24 @@ object Health {
             handler.postDelayed(then, delayMs)
             return
         }
+        val stop = watchCounter(c)
+        HealthServices.getClient(c).passiveMonitoringClient.flushAsync()
+        handler.postDelayed({ stop(); then() }, delayMs)
+    }
+
+    /** Feeds every step-sensor reading into the store until the returned stop is called. */
+    fun watchCounter(c: Context): () -> Unit {
+        if (!hasPermission(c)) return {}
         val sm = c.getSystemService(SensorManager::class.java)
-        var counter = -1L
-        var counterAt = 0L // when the counter last moved, in ms since boot
+        val sensor = sm.getDefaultSensor(Sensor.TYPE_STEP_COUNTER) ?: return {}
         val listener = object : SensorEventListener {
-            override fun onSensorChanged(e: SensorEvent) {
-                counter = e.values[0].toLong()
-                counterAt = e.timestamp / 1_000_000
-            }
+            override fun onSensorChanged(e: SensorEvent) =
+                Store.syncCounter(c, e.values[0].toLong(), e.timestamp / 1_000_000)
             override fun onAccuracyChanged(s: Sensor?, a: Int) = Unit
         }
-        sm.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)?.let {
-            sm.registerListener(listener, it, SensorManager.SENSOR_DELAY_NORMAL, 0)
-            sm.flush(listener)
-        }
-        HealthServices.getClient(c).passiveMonitoringClient.flushAsync()
-        handler.postDelayed({
-            sm.unregisterListener(listener)
-            if (counter >= 0) Store.syncCounter(c, counter, counterAt)
-            then()
-        }, delayMs)
+        sm.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_NORMAL, 2_000_000)
+        sm.flush(listener) // hand over the current count straight away
+        return { sm.unregisterListener(listener) }
     }
 }
 
