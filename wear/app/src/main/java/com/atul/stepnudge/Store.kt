@@ -87,7 +87,7 @@ object Store {
                 .putLong("pairedCounter", counter)
                 .putString("pairedDate", today())
                 .apply()
-            return
+            return saveSteps(c, p.getLong("batchSteps", 0)) // marks the count as just checked
         }
         val pairedCounter = p.getLong("pairedCounter", -1)
         // A smaller counter means the watch rebooted since the pairing.

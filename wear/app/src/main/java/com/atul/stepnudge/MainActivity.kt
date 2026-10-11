@@ -150,6 +150,7 @@ private fun App() {
                     Text(if (hasSteps) "${fmt(steps)} steps so far" else "Waiting for step data…",
                         style = MaterialTheme.typography.caption2)
                 }
+                item { RefreshChip(c, null) }
                 item {
                     Stepper(
                         if (startMin == null) "Start" else "Start · from ${fmt(startSteps)}",
@@ -197,6 +198,23 @@ private fun Stepper(label: String, value: String, onMinus: () -> Unit, onPlus: (
     }
 }
 
+/** Pulls the latest steps on demand; the screen redraws by itself once they're saved. */
+@Composable
+private fun RefreshChip(c: Context, detail: String?) {
+    var busy by remember { mutableStateOf(false) }
+    Chip(
+        label = { Text(if (busy) "Refreshing…" else "Refresh") },
+        secondaryLabel = detail?.let { { Text(it) } },
+        onClick = {
+            busy = true
+            Health.flushThen(c, 2_000) { Nudger.evaluate(c); busy = false }
+        },
+        enabled = !busy,
+        colors = ChipDefaults.secondaryChipColors(),
+        modifier = Modifier.fillMaxWidth(0.85f),
+    )
+}
+
 @Composable
 private fun PerHour(plan: Plan) {
     val (steps, minutes) = plan.perHour()
@@ -236,7 +254,7 @@ private fun ScalingLazyListScope.active(c: Context, plan: Plan, refresh: () -> U
             style = MaterialTheme.typography.caption1)
     }
     item { PerHour(plan) }
-    item { Text("updated ${ageMin} min ago", style = MaterialTheme.typography.caption3) }
+    item { RefreshChip(c, if (ageMin == 0L) "updated just now" else "updated $ageMin min ago") }
     if (s.catchUpSteps > 0 && s.mood != Mood.DONE) {
         item {
             Chip(
