@@ -50,15 +50,37 @@ import androidx.wear.compose.material.Text
 import androidx.wear.compose.material.TimeText
 import androidx.wear.compose.material.ToggleChip
 import androidx.wear.compose.material.ToggleChipDefaults
+import androidx.wear.ambient.AmbientLifecycleObserver
 import kotlinx.coroutines.delay
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 
 class MainActivity : ComponentActivity() {
+    private val ambient = mutableStateOf(false)
+
+    /**
+     * Ambient support keeps a catch-up on screen when the display sleeps, so raising your wrist shows
+     * the walk rather than the watch face. Outside a catch-up we step aside after a minute, as a normal app would.
+     */
+    private val ambientObserver = AmbientLifecycleObserver(this, object : AmbientLifecycleObserver.AmbientLifecycleCallback {
+        override fun onEnterAmbient(ambientDetails: AmbientLifecycleObserver.AmbientDetails) {
+            ambient.value = true
+        }
+
+        override fun onUpdateAmbient() { // about once a minute
+            if (CatchUp.state.value == null) moveTaskToBack(true)
+        }
+
+        override fun onExitAmbient() {
+            ambient.value = false
+        }
+    })
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { MaterialTheme { App() } }
+        lifecycle.addObserver(ambientObserver)
+        setContent { MaterialTheme { App(ambient.value) } }
         Nudger.createChannel(this)
         if (intent?.action == ACTION_CATCH_UP) startCatchUp()
     }
@@ -79,7 +101,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun App() {
+private fun App(ambient: Boolean) {
     val c = LocalContext.current
     // Bumped to re-read the store after any change, and periodically while the screen is open.
     var tick by remember { mutableIntStateOf(0) }
@@ -128,11 +150,12 @@ private fun App() {
     val catchUp by CatchUp.state.collectAsState()
 
     Scaffold(timeText = { TimeText() }) {
-        @Suppress("UNUSED_EXPRESSION") tick // read so the list recomposes on refresh
-        val plan = Store.plan(c)
         ScalingLazyColumn(Modifier.fillMaxWidth()) {
+            // Read inside the list builder: the list only rebuilds when state read here changes.
+            @Suppress("UNUSED_EXPRESSION") tick
+            val plan = Store.plan(c)
             val progress = catchUp
-            if (progress != null) tracking(c, progress, plan?.pace ?: 100)
+            if (progress != null) tracking(c, progress, plan?.pace ?: 100, ambient)
             else if (plan != null) active(c, plan, refresh)
             else {
                 val steps = Store.todaySteps(c)
@@ -268,7 +291,8 @@ private fun ScalingLazyListScope.active(c: Context, plan: Plan, refresh: () -> U
     controls(c, muted, refresh)
 }
 
-private fun ScalingLazyListScope.tracking(c: Context, p: CatchUp.Progress, pace: Int) {
+/** In [ambient] the screen is dimmed and mostly black, so the ring goes grey and Stop is hidden. */
+private fun ScalingLazyListScope.tracking(c: Context, p: CatchUp.Progress, pace: Int, ambient: Boolean) {
     val toGo = (p.need - p.walked).coerceAtLeast(0)
     item { Text("Catching up", style = MaterialTheme.typography.caption1) }
     item {
@@ -277,7 +301,8 @@ private fun ScalingLazyListScope.tracking(c: Context, p: CatchUp.Progress, pace:
                 progress = p.walked.toFloat() / p.need,
                 modifier = Modifier.fillMaxSize(),
                 strokeWidth = 8.dp,
-                indicatorColor = Color(0xFF818CF8),
+                indicatorColor = if (ambient) Color.Gray else Color(0xFF818CF8),
+                trackColor = if (ambient) Color.Black else MaterialTheme.colors.onBackground.copy(alpha = 0.1f),
             )
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(fmt(toGo.toLong()), fontSize = 28.sp, fontWeight = FontWeight.Bold)
@@ -286,7 +311,7 @@ private fun ScalingLazyListScope.tracking(c: Context, p: CatchUp.Progress, pace:
         }
     }
     item { Text("~${(toGo + pace - 1) / pace} min", style = MaterialTheme.typography.caption1) }
-    item {
+    if (!ambient) item {
         Chip(
             label = { Text("Stop") },
             onClick = { CatchUp.stop(c) },

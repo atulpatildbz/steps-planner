@@ -1,5 +1,6 @@
 package com.atul.stepnudge
 
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -18,6 +19,8 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
+import androidx.wear.ongoing.OngoingActivity
+import androidx.wear.ongoing.Status
 import kotlinx.coroutines.flow.MutableStateFlow
 
 /** A live catch-up walk: counts steps on the raw sensor until you're back on the plan line. */
@@ -97,7 +100,7 @@ class CatchUpService : Service(), SensorEventListener {
 
         // Count the walk straight away rather than waiting for Health Services' next batch.
         val walked = CatchUp.state.value?.walked ?: 0
-        if (walked > 0) Store.saveSteps(this, startSteps + walked)
+        if (walked > 0) Store.saveSteps(this, maxOf(startSteps + walked, Store.todaySteps(this)))
         CatchUp.state.value = null
 
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
@@ -106,21 +109,44 @@ class CatchUpService : Service(), SensorEventListener {
         Nudger.evaluate(this)
     }
 
-    private fun progressNotification(toGo: Int) = NotificationCompat.Builder(this, CHANNEL)
-        .also {
-            NotificationManagerCompat.from(this).createNotificationChannel(
-                NotificationChannel(CHANNEL, "Catch-up walk", NotificationManager.IMPORTANCE_LOW),
-            )
+    private var notif: NotificationCompat.Builder? = null
+    private var ongoing: OngoingActivity? = null
+
+    /**
+     * The progress notification, marked as an Ongoing Activity: Wear OS then treats the walk like a
+     * workout, showing an icon on the watch face that returns here.
+     */
+    private fun progressNotification(toGo: Int): Notification {
+        val text = "${fmt(toGo.toLong())} steps to go"
+        val status = Status.Builder().addTemplate(text).build()
+        notif?.let {
+            it.setContentText(text)
+            ongoing?.update(this, status)
+            return it.build()
         }
-        .setSmallIcon(R.drawable.ic_launcher_foreground)
-        .setContentTitle("Catching up")
-        .setContentText("${fmt(toGo.toLong())} steps to go")
-        .setOngoing(true)
-        .setOnlyAlertOnce(true)
-        .setContentIntent(PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE))
-        .addAction(0, "Stop", PendingIntent.getService(this, 2,
-            Intent(this, CatchUpService::class.java).setAction(ACTION_STOP), PendingIntent.FLAG_IMMUTABLE))
-        .build()
+        NotificationManagerCompat.from(this).createNotificationChannel(
+            NotificationChannel(CHANNEL, "Catch-up walk", NotificationManager.IMPORTANCE_LOW),
+        )
+        val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
+        val b = NotificationCompat.Builder(this, CHANNEL)
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setContentTitle("Catching up")
+            .setContentText(text)
+            .setCategory(NotificationCompat.CATEGORY_WORKOUT)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setContentIntent(open)
+            .addAction(0, "Stop", PendingIntent.getService(this, 2,
+                Intent(this, CatchUpService::class.java).setAction(ACTION_STOP), PendingIntent.FLAG_IMMUTABLE))
+        ongoing = OngoingActivity.Builder(this, NOTIF_ID, b)
+            .setStaticIcon(R.drawable.ic_launcher_foreground)
+            .setTouchIntent(open)
+            .setStatus(status)
+            .build()
+            .also { it.apply(this) }
+        notif = b
+        return b.build()
+    }
 
     companion object {
         const val ACTION_STOP = "com.atul.stepnudge.STOP_CATCH_UP"

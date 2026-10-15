@@ -3,8 +3,10 @@ package com.atul.stepnudge
 import android.content.Context
 import android.content.SharedPreferences
 import android.os.SystemClock
+import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
+import java.time.ZoneId
 
 /** Today's plan. The ideal line runs from (anchorTime, anchorSteps) to (endTime, target) and never moves. */
 data class Plan(
@@ -38,20 +40,27 @@ object Store {
     }
     private fun today() = LocalDate.now().toString()
 
-    /** Daily steps only go up, so a late or partial batch never makes us look behind. */
+    /** Today's count is whatever the latest reading says; a reading can correct an earlier one downwards. */
     fun saveSteps(c: Context, steps: Long) {
-        val best = maxOf(steps, todaySteps(c))
         prefs(c).edit()
-            .putLong("steps", best)
+            .putLong("steps", steps)
             .putLong("stepsAt", System.currentTimeMillis())
             .putString("stepsDate", today())
-            .putString("log", appendLog(log(c), LocalTime.now().toSecondOfDay() / 60, best))
+            .putString("log", appendLog(log(c), LocalTime.now().toSecondOfDay() / 60, steps))
             .apply()
     }
 
-    /** A batch from Health Services: the same count the watch face shows, as of [endMs] (ms since boot). */
+    /**
+     * A batch from Health Services: the same count the watch face shows, as of [endMs] (ms since boot).
+     * Batches arrive late, so one can land after midnight still carrying yesterday's total; we drop those,
+     * and any batch older than one we already have.
+     */
     fun saveBatch(c: Context, steps: Long, endMs: Long) {
-        prefs(c).edit()
+        val p = prefs(c)
+        val day = Instant.ofEpochMilli(bootedAt() + endMs).atZone(ZoneId.systemDefault()).toLocalDate().toString()
+        if (day != today()) return
+        if (batchToday(c) != null && p.getLong("batchBoot", 0).sameBoot() && endMs < p.getLong("batchEnd", 0)) return
+        p.edit()
             .putLong("batchSteps", steps)
             .putLong("batchEnd", endMs)
             .putLong("batchBoot", bootedAt())
@@ -59,11 +68,14 @@ object Store {
             .apply()
         saveSteps(c, steps)
         // The sensor may have been read just before this batch landed; see if they now line up.
-        val p = prefs(c)
         if (p.getLong("counterBoot", 0).sameBoot()) {
             syncCounter(c, p.getLong("counter", 0), p.getLong("counterAt", 0), p.getLong("counterReadAt", 0))
         }
     }
+
+    /** Today's latest Health Services count, or null if none has arrived since midnight. */
+    private fun batchToday(c: Context): Long? =
+        prefs(c).takeIf { it.getString("batchDate", null) == today() }?.getLong("batchSteps", 0)
 
     /**
      * Health Services hands steps over in batches, so its count can lag the watch face by minutes.
@@ -92,7 +104,8 @@ object Store {
         val pairedCounter = p.getLong("pairedCounter", -1)
         // A smaller counter means the watch rebooted since the pairing.
         if (p.getString("pairedDate", null) == today() && pairedCounter in 0..counter) {
-            saveSteps(c, p.getLong("pairedSteps", 0) + counter - pairedCounter)
+            // Never below Health Services' own count, in case the counter reading is older than its batch.
+            saveSteps(c, maxOf(p.getLong("pairedSteps", 0) + counter - pairedCounter, batchToday(c) ?: 0))
         }
     }
 
